@@ -1,14 +1,17 @@
 @prefix lv2:  <http://lv2plug.in/ns/lv2core#>.
 @prefix foaf: <http://xmlns.com/foaf/0.1/>.
 @prefix doap: <http://usefulinc.com/ns/doap#>.
-@prefix epp: <http://lv2plug.in/ns/ext/port-props#>.
+@prefix pprops: <http://lv2plug.in/ns/ext/port-props#>.
 @prefix ue: <http://lv2plug.in/ns/extensions/units#>.
 @prefix ll: <http://ll-plugins.nongnu.org/lv2/namespace#>.
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
+@prefix param: <http://lv2plug.in/ns/ext/parameters#>.
+@prefix pg: <http://lv2plug.in/ns/ext/port-groups#>.
 
 <http://zamaudio.com/lv2/zameq2>
   a lv2:Plugin;
+  a lv2:FilterPlugin;
   a lv2:EQPlugin;
 
   lv2:binary <zameq2.so>;
@@ -20,16 +23,20 @@
   ];
   doap:license <http://usefulinc.com/doap/licenses/gpl>;
   ll:pegName "p";
-  lv2:optionalFeature epp:supportsStrictBounds ;
+  lv2:optionalFeature pprops:supportsStrictBounds ;
+  lv2:optionalFeature lv2:hardRTCapable ;
 
   lv2:port [
     a lv2:ControlPort, lv2:InputPort;
     lv2:index 0;
     lv2:symbol "boostdb1";
-    lv2:name "Boost/Cut 1 (dB)";
+    lv2:name "Boost/Cut 1";
+    lv2:portProperty pprops:hasStrictBounds ;
+    lv2:designation param:gain ;
     lv2:minimum -40.0 ;
     lv2:maximum 40.0 ;
     lv2:default 0.0 ;
+    ue:unit ue:coef;
   ],
 
   [
@@ -37,9 +44,11 @@
     lv2:index 1;
     lv2:symbol "q1";
     lv2:name "Q 1";
+    lv2:portProperty pprops:hasStrictBounds ;
     lv2:minimum 0.01 ;
     lv2:maximum 50.0 ;
     lv2:default 1.0 ;
+    ue:unit ue:coef;
   ],
 
   [
@@ -47,11 +56,13 @@
     lv2:index 2;
     lv2:symbol "freq1";
     lv2:name "Frequency 1";
-    lv2:portProperty epp:hasStrictBounds ;
-    lv2:portProperty epp:logarithmic ;
+    lv2:portProperty pprops:hasStrictBounds ;
+    lv2:portProperty pprops:logarithmic ;
+    lv2:designation param:cutoffFrequency;
     lv2:default 1000.0 ;
     lv2:minimum 15.0 ;
     lv2:maximum 20000.0 ;
+    ue:unit ue:hz;
   ],
 
   [
