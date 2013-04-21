@@ -8,11 +8,13 @@ OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 
 
 LDFLAGS ?= -Wl,--as-needed
 CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
+CFLAGS ?= $(OPTIMIZATIONS) -Wall
 
 ###############################################################################
 BUNDLE = zameq2.lv2
 
 CXXFLAGS += -fPIC -DPIC
+CFLAGS += -fPIC -DPIC
 
 UNAME=$(shell uname)
 ifeq ($(UNAME),Darwin)
@@ -43,10 +45,10 @@ $(BUNDLE): manifest.ttl zameq2.ttl zameq2$(LIB_EXT)
 	mkdir $(BUNDLE)
 	cp manifest.ttl zameq2.ttl zameq2$(LIB_EXT) $(BUNDLE)
 
-zameq2$(LIB_EXT): zameq2.cpp
+zameq2$(LIB_EXT): zameq2.c
 	$(CXX) -o zameq2$(LIB_EXT) \
 		$(CXXFLAGS) \
-		zameq2.cpp \
+		zameq2.c \
 		$(LV2FLAGS) $(LDFLAGS)
 
 #zamcomp_gui$(LIB_EXT): zamcomp_gui.cpp zamcomp.peg
