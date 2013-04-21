@@ -40,6 +40,7 @@ public:
   float f0;
   float Q;
   int type;
+  float A11old;
 
   float a1,a2,b1,b2,c,d,dt,srate;
   float BB[12];
@@ -144,12 +145,12 @@ public:
   type = *p(3);
 
   K = exp(boostdb/40.f*log(10.f));
-  w0 = 2.f*M_PI*f0 / srate;
-  dt = 1.f/srate*10000.f;// / srate;
+  w0 = 2.f*M_PI*f0 ;
+  dt = 1.f/srate;// / srate;
 
     switch (type) {
         case PEAKING:
-                a1 = 1.f / (Q*K);
+                a1 = 1.f / (Q * K);
                 a2 = 1.f;
                 b1 = (K - 1.f) / (K*Q);
                 b2 = 0.f;
@@ -159,7 +160,7 @@ public:
         case LOWSHELF:
                 a1 = 1.f / (sqrt(K)*Q);
                 a2 = 1.f / K;
-                b1 = (sqrt(K) - 1.f) / (sqrt(K)*Q);
+                b1 = (K - 1.f) / (sqrt(K)*Q);
                 b2 = (K - 1.f) / K;
                 c = 1.f;
                 break;
@@ -175,19 +176,25 @@ public:
 		printf("wtf type=%d\n",type);
     }
 
-    d = sqrt(std::abs(4.f*a2-a1*a1));
+    d = sqrt(fabs(4.f*a2-a1*a1));
 	
 
+    printf("BB = [");
     for (ii = 0; ii <= 10; ++ii) {
 	BB[ii] = simpson1(ii-5, 0.f, dt, 10.f);
-	CC[ii] = simpson2(ii-5, 0.f, dt, 10.f);
-//	printf("%d:%f:%f\n",ii,BB[ii],CC[ii]);
+	printf("%f, ",BB[ii]);
     }
-
+    printf("]\nCC = [");
+    for (ii = 0; ii <= 10; ++ii) {
+	CC[ii] = simpson2(ii-5, 0.f, dt, 10.f);
+	printf("%f, ",CC[ii]);
+    }
+    printf("]\nA11=%f; A12=%f; A21=%f; A22=%f; c=%f\n\n",A11(dt),A12(dt),A21(dt),A22(dt),c);
 
     float aa22 = A22(dt);
     float aa12 = A12(dt);
-
+    A11old = A11(dt);
+    
     for (i = 0; i < nframes; ++i) {
       int k;
       sanitize_denormal(p(4)[i]);
