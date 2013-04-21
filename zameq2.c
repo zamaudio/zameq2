@@ -20,13 +20,14 @@ typedef struct {
 	float* boostdb1;
 	float* q1;
 	float* freq1;
+
+	float x1,x2,y1,y2;
+	float a0x,a1x,a2x,b0x,b1x,b2x,gainx;
+	//float a0y,a1y,a2y,b0y,b1y,b2y,gainy;
+	float srate;
 } ZamEQ2;
 
 
-float x1,x2,y1,y2;
-float a0x,a1x,a2x,b0x,b1x,b2x,gainx;
-//float a0y,a1y,a2y,b0y,b1y,b2y,gainy;
-float srate;
 
 static LV2_Handle
 instantiate(const LV2_Descriptor*     descriptor,
@@ -35,7 +36,7 @@ instantiate(const LV2_Descriptor*     descriptor,
             const LV2_Feature* const* features)
 {
 	ZamEQ2* zameq2 = (ZamEQ2*)malloc(sizeof(ZamEQ2));
-	srate = rate;
+	zameq2->srate = rate;
 	return (LV2_Handle)zameq2;
 }
 
@@ -63,46 +64,6 @@ connect_port(LV2_Handle instance,
 		zameq2->freq1 = (float*)data;
 		break;
 	}
-}
-
-void 
-peq(float G0, float G, float GB, float w0, float Dw,
-        float *a0, float *a1, float *a2, float *b0, float *b1, float *b2, float *gn) {
-
-        float F,G00,F00,num,den,G1,G01,G11,F01,F11,W2,Dww,C,D,B,A;
-        F = fabs(G*G - GB*GB);
-        G00 = fabs(G*G - G0*G0);
-        F00 = fabs(GB*GB - G0*G0);
-        num = G0*G0 * (w0*w0 - M_PI*M_PI)*(w0*w0 - M_PI*M_PI)
-                + G*G * F00 * M_PI*M_PI * Dw*Dw / F;
-        den = (w0*w0 - M_PI*M_PI)*(w0*w0 - M_PI*M_PI)
-                + F00 * M_PI*M_PI * Dw*Dw / F;
-        G1 = sqrt(num/den);
-        G01 = fabs(G*G - G0*G1);
-        G11 = fabs(G*G - G1*G1);
-        F01 = fabs(GB*GB - G0*G1);
-        F11 = fabs(GB*GB - G1*G1);
-        W2 = sqrt(G11 / G00) * tan(w0/2.f)*tan(w0/2.f);
-        Dww = (1.f + sqrt(F00 / F11) * W2) * tan(Dw/2.f);
-        C = F11 * Dww*Dww - 2.f * W2 * (F01 - sqrt(F00 * F11));
-        D = 2.f * W2 * (G01 - sqrt(G00 * G11));
-        A = sqrt((C + D) / F);
-        B = sqrt((G*G * C + GB*GB * D) / F);
-        *gn = G1;
-        *b0 = (G1 + G0*W2 + B) / (1.f + W2 + A);
-        *b1 = -2.f*(G1 - G0*W2) / (1.f + W2 + A);
-        *b2 = (G1 - B + G0*W2) / (1.f + W2 + A);
-        *a0 = 1.f;
-        *a1 = -2.f*(1.f - W2) / (1.f + W2 + A);
-        *a2 = (1 + W2 - A) / (1.f + W2 + A);
-
-        sanitize_denormal(*b1);
-        sanitize_denormal(*b2);
-        sanitize_denormal(*a0);
-        sanitize_denormal(*a1);
-        sanitize_denormal(*a2);
-        sanitize_denormal(*gn);
-        if (is_nan(*b0)) { *b0 = 1.f; }
 }
 
 // Works on little-endian machines only
@@ -142,6 +103,46 @@ activate(LV2_Handle instance)
 {
 }
 
+void
+peq(float G0, float G, float GB, float w0, float Dw,
+        float *a0, float *a1, float *a2, float *b0, float *b1, float *b2, float *gn) {
+
+        float F,G00,F00,num,den,G1,G01,G11,F01,F11,W2,Dww,C,D,B,A;
+        F = fabs(G*G - GB*GB);
+        G00 = fabs(G*G - G0*G0);
+        F00 = fabs(GB*GB - G0*G0);
+        num = G0*G0 * (w0*w0 - M_PI*M_PI)*(w0*w0 - M_PI*M_PI)
+                + G*G * F00 * M_PI*M_PI * Dw*Dw / F;
+        den = (w0*w0 - M_PI*M_PI)*(w0*w0 - M_PI*M_PI)
+                + F00 * M_PI*M_PI * Dw*Dw / F;
+        G1 = sqrt(num/den);
+        G01 = fabs(G*G - G0*G1);
+        G11 = fabs(G*G - G1*G1);
+        F01 = fabs(GB*GB - G0*G1);
+        F11 = fabs(GB*GB - G1*G1);
+        W2 = sqrt(G11 / G00) * tan(w0/2.f)*tan(w0/2.f);
+        Dww = (1.f + sqrt(F00 / F11) * W2) * tan(Dw/2.f);
+        C = F11 * Dww*Dww - 2.f * W2 * (F01 - sqrt(F00 * F11));
+        D = 2.f * W2 * (G01 - sqrt(G00 * G11));
+        A = sqrt((C + D) / F);
+        B = sqrt((G*G * C + GB*GB * D) / F);
+        *gn = G1;
+        *b0 = (G1 + G0*W2 + B) / (1.f + W2 + A);
+        *b1 = -2.f*(G1 - G0*W2) / (1.f + W2 + A);
+        *b2 = (G1 - B + G0*W2) / (1.f + W2 + A);
+        *a0 = 1.f;
+        *a1 = -2.f*(1.f - W2) / (1.f + W2 + A);
+        *a2 = (1 + W2 - A) / (1.f + W2 + A);
+
+        sanitize_denormal(*b1);
+        sanitize_denormal(*b2);
+        sanitize_denormal(*a0);
+        sanitize_denormal(*a1);
+        sanitize_denormal(*a2);
+        sanitize_denormal(*gn);
+        if (is_nan(*b0)) { *b0 = 1.f; }
+}
+
 static void
 run(LV2_Handle instance, uint32_t n_samples)
 {
@@ -155,7 +156,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	float dcgain1 = 1.f;
 	float boost1 = from_dB(boostdb1);
-  	float fc1 = freq1 / srate;
+  	float fc1 = freq1 / zameq2->srate;
 
 	//12dB boost at 1000Hz Q=5
 	//float boost1 = exp(12.f/20.f*log(10.f));
@@ -167,24 +168,22 @@ run(LV2_Handle instance, uint32_t n_samples)
 	float bwgain1 = (boostdb1 == 0.f) ? 1.f : (boostdb1 < 0.f) ? boost1*from_dB(3.f) : boost1*from_dB(-3.f);
 	float bw1 = fc1 / q1;
 
-	uint32_t i = 0;
-
-	peq(dcgain1,boost1,bwgain1,w01,bw1,&a0x,&a1x,&a2x,&b0x,&b1x,&b2x,&gainx);
+	peq(dcgain1,boost1,bwgain1,w01,bw1,&zameq2->a0x,&zameq2->a1x,&zameq2->a2x,&zameq2->b0x,&zameq2->b1x,&zameq2->b2x,&zameq2->gainx);
 	//printf("B = [%f, %f, %f]\n",b0x, b1x, b2x);
 	//printf("A = [%f, %f, %f]\n",a0x, a1x, a2x);
 	//printf("in(0) = %f\n\n",p(3)[0]);
 
 	for (uint32_t pos = 0; pos < n_samples; pos++) {
-		sanitize_denormal(x1);
-		sanitize_denormal(x2);
-		sanitize_denormal(y1);
-		sanitize_denormal(y2);
-		output[pos] = (input[pos] * b0x + x1 * b1x + x2 * b2x - y1 * a1x - y2 * a2x);
+		sanitize_denormal(zameq2->x1);
+		sanitize_denormal(zameq2->x2);
+		sanitize_denormal(zameq2->y1);
+		sanitize_denormal(zameq2->y2);
+		output[pos] = (input[pos] * zameq2->b0x + zameq2->x1 * zameq2->b1x + zameq2->x2 * zameq2->b2x - zameq2->y1 * zameq2->a1x - zameq2->y2 * zameq2->a2x);
 		sanitize_denormal(output[pos]);
-		x2 = x1;
-		y2 = y1;
-		x1 = input[pos];
-		y1 = output[pos];
+		zameq2->x2 = zameq2->x1;
+		zameq2->y2 = zameq2->y1;
+		zameq2->x1 = input[pos];
+		zameq2->y1 = output[pos];
 	}
 }
 
