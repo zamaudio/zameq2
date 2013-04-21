@@ -226,7 +226,7 @@ public:
 	(-BB[1]*aa22 - CC[1]*aa12 + BB[2])*z[3] + 
 	(-BB[0]*aa22 - CC[0]*aa12 + BB[1])*z[2] + 
 	(BB[0]*z[1]) -
-	p(4)[i]*1.f - (A11(dt)+A22(dt))*y1 - (A11(dt)*A22(dt)-A12(dt)*A21(dt))*y2;
+	(A11(dt)+A22(dt))*y1 - (A11(dt)*A22(dt)-A12(dt)*A21(dt))*y2;
 
       if(p(5)[i] > 1.f) { p(5)[i] = 1.f; }
       if(p(5)[i] < -1.f) { p(5)[i] = -1.f; }
