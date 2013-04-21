@@ -76,4 +76,44 @@
     lv2:minimum 15.0 ;
     lv2:maximum 20000.0 ;
     ue:unit ue:hz;
+  ],
+
+  [
+    a lv2:ControlPort, lv2:InputPort;
+    lv2:index 5;
+    lv2:symbol "boostdb2";
+    lv2:name "Boost/Cut 2";
+    lv2:portProperty pprops:hasStrictBounds ;
+    lv2:designation param:gain ;
+    lv2:minimum -40.0 ;
+    lv2:maximum 40.0 ;
+    lv2:default 0.0 ;
+    ue:unit ue:coef;
+  ],
+
+  [
+    a lv2:ControlPort, lv2:InputPort;
+    lv2:index 6;
+    lv2:symbol "q2";
+    lv2:name "Q 2";
+    lv2:portProperty pprops:hasStrictBounds ;
+    lv2:portProperty pprops:logarithmic ;
+    lv2:minimum 0.01 ;
+    lv2:maximum 50.0 ;
+    lv2:default 1.0 ;
+    ue:unit ue:coef;
+  ],
+
+  [
+    a lv2:ControlPort, lv2:InputPort;
+    lv2:index 7;
+    lv2:symbol "freq2";
+    lv2:name "Frequency 2";
+    lv2:portProperty pprops:hasStrictBounds ;
+    lv2:portProperty pprops:logarithmic ;
+    lv2:designation param:cutoffFrequency;
+    lv2:default 1000.0 ;
+    lv2:minimum 15.0 ;
+    lv2:maximum 20000.0 ;
+    ue:unit ue:hz;
   ].

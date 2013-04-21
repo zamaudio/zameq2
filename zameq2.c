@@ -9,9 +9,14 @@
 typedef enum {
 	ZAMEQ2_INPUT  = 0,
 	ZAMEQ2_OUTPUT = 1,
+
 	ZAMEQ2_BOOSTDB1 = 2,
 	ZAMEQ2_Q1 = 3,
-	ZAMEQ2_FREQ1 = 4
+	ZAMEQ2_FREQ1 = 4,
+	
+	ZAMEQ2_BOOSTDB2 = 5,
+	ZAMEQ2_Q2 = 6,
+	ZAMEQ2_FREQ2 = 7
 } PortIndex;
 
 typedef struct {
@@ -20,10 +25,14 @@ typedef struct {
 	float* boostdb1;
 	float* q1;
 	float* freq1;
+	float* boostdb2;
+	float* q2;
+	float* freq2;
 
 	float x1,x2,y1,y2;
+	float x1a,x2a,y1a,y2a;
 	float a0x,a1x,a2x,b0x,b1x,b2x,gainx;
-	//float a0y,a1y,a2y,b0y,b1y,b2y,gainy;
+	float a0y,a1y,a2y,b0y,b1y,b2y,gainy;
 	float srate;
 } ZamEQ2;
 
@@ -38,7 +47,9 @@ instantiate(const LV2_Descriptor*     descriptor,
 	ZamEQ2* zameq2 = (ZamEQ2*)malloc(sizeof(ZamEQ2));
 	zameq2->srate = rate;
 	zameq2->x1=zameq2->x2=zameq2->y1=zameq2->y2=0.f;
+	zameq2->x1a=zameq2->x2a=zameq2->y1a=zameq2->y2a=0.f;
 	zameq2->a0x=zameq2->a1x=zameq2->a2x=zameq2->b0x=zameq2->b1x=zameq2->b2x=zameq2->gainx=0.f;
+	zameq2->a0y=zameq2->a1y=zameq2->a2y=zameq2->b0y=zameq2->b1y=zameq2->b2y=zameq2->gainy=0.f;
 	return (LV2_Handle)zameq2;
 }
 
@@ -64,6 +75,15 @@ connect_port(LV2_Handle instance,
 		break;
 	case ZAMEQ2_FREQ1:
 		zameq2->freq1 = (float*)data;
+		break;
+	case ZAMEQ2_BOOSTDB2:
+		zameq2->boostdb2 = (float*)data;
+		break;
+	case ZAMEQ2_Q2:
+		zameq2->q2 = (float*)data;
+		break;
+	case ZAMEQ2_FREQ2:
+		zameq2->freq2 = (float*)data;
 		break;
 	}
 }
@@ -152,42 +172,56 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	const float* const input  = zameq2->input;
 	float* const       output = zameq2->output;
+
 	const float        boostdb1 = *(zameq2->boostdb1);
 	const float        q1 = *(zameq2->q1);
 	const float        freq1 = *(zameq2->freq1);
+	
+	const float        boostdb2 = *(zameq2->boostdb2);
+	const float        q2 = *(zameq2->q2);
+	const float        freq2 = *(zameq2->freq2);
 
-	float dcgain1 = 1.f;
+	float dcgain = 1.f;
+	
 	float boost1 = from_dB(boostdb1);
   	float fc1 = freq1 / zameq2->srate;
-
-	//12dB boost at 1000Hz Q=5
-	//float boost1 = exp(12.f/20.f*log(10.f));
-	//float q1 = 5.f;
-	//float fc1 = 1000.f/srate;
-
 	float w01 = fc1*2.f*M_PI;
-
 	float bwgain1 = (boostdb1 == 0.f) ? 1.f : (boostdb1 < 0.f) ? boost1*from_dB(3.f) : boost1*from_dB(-3.f);
 	float bw1 = fc1 / q1;
 
-	peq(dcgain1,boost1,bwgain1,w01,bw1,&zameq2->a0x,&zameq2->a1x,&zameq2->a2x,&zameq2->b0x,&zameq2->b1x,&zameq2->b2x,&zameq2->gainx);
-	//printf("B = [%f, %f, %f]\n",b0x, b1x, b2x);
-	//printf("A = [%f, %f, %f]\n",a0x, a1x, a2x);
-	//printf("in(0) = %f\n\n",p(3)[0]);
+	float boost2 = from_dB(boostdb2);
+  	float fc2 = freq2 / zameq2->srate;
+	float w02 = fc2*2.f*M_PI;
+	float bwgain2 = (boostdb2 == 0.f) ? 1.f : (boostdb2 < 0.f) ? boost2*from_dB(3.f) : boost2*from_dB(-3.f);
+	float bw2 = fc2 / q2;
+	
+	peq(dcgain,boost1,bwgain1,w01,bw1,&zameq2->a0x,&zameq2->a1x,&zameq2->a2x,&zameq2->b0x,&zameq2->b1x,&zameq2->b2x,&zameq2->gainx);
+	peq(dcgain,boost2,bwgain2,w02,bw2,&zameq2->a0y,&zameq2->a1y,&zameq2->a2y,&zameq2->b0y,&zameq2->b1y,&zameq2->b2y,&zameq2->gainy);
 
 	for (uint32_t pos = 0; pos < n_samples; pos++) {
+		float tmp;
 		float in = input[pos];
 		sanitize_denormal(zameq2->x1);
 		sanitize_denormal(zameq2->x2);
 		sanitize_denormal(zameq2->y1);
 		sanitize_denormal(zameq2->y2);
+		sanitize_denormal(zameq2->x1a);
+		sanitize_denormal(zameq2->x2a);
+		sanitize_denormal(zameq2->y1a);
+		sanitize_denormal(zameq2->y2a);
+		sanitize_denormal(in);
 		
-		output[pos] = (in * zameq2->b0x + zameq2->x1 * zameq2->b1x + zameq2->x2 * zameq2->b2x - zameq2->y1 * zameq2->a1x - zameq2->y2 * zameq2->a2x);
-		sanitize_denormal(output[pos]);
+		tmp = in * zameq2->b0x + zameq2->x1 * zameq2->b1x + zameq2->x2 * zameq2->b2x - zameq2->y1 * zameq2->a1x - zameq2->y2 * zameq2->a2x;
 		zameq2->x2 = zameq2->x1;
 		zameq2->y2 = zameq2->y1;
 		zameq2->x1 = in;
-		zameq2->y1 = output[pos];
+		zameq2->y1 = tmp;
+		
+		output[pos] = tmp * zameq2->b0y + zameq2->x1a * zameq2->b1y + zameq2->x2a * zameq2->b2y - zameq2->y1a * zameq2->a1y - zameq2->y2a * zameq2->a2y;
+		zameq2->x2a = zameq2->x1a;
+		zameq2->y2a = zameq2->y1a;
+		zameq2->x1a = tmp;
+		zameq2->y1a = output[pos];
 	}
 }
 
