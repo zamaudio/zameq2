@@ -3,20 +3,22 @@
 #include <stdio.h>
 #include <cmath>
 
-using namespace LV2;
+#define PEAKING		0
+#define LOWSHELF	1
+#define HIGHSHELF	2
 
+using namespace LV2;
 
 class ZamEQ2 : public Plugin<ZamEQ2> {
 public:
   
   ZamEQ2(double rate)
-    : Plugin<ZamEQ2>(5) {
+    : Plugin<ZamEQ2>(6) {
     
     srate = rate;
-    x1=x2=y1=y2=0.f;
-    a0x=a1x=a2x=b0x=b1x=b2x=0.f;
-    a0y=a1y=a2y=b0y=b1y=b2y=0.f;
-    gainx=gainy=0.f;
+    y1=y2=0.f;
+    z[12]=z[11]=z[10]=z[9]=z[8]=z[7]=z[6]=z[5]=z[4]=z[3]=z[2]=z[1]=0.f;
+    x[5]=x[4]=x[3]=x[2]=x[1]=0.f;
   }
 
   // Works on little-endian machines only
@@ -33,101 +35,219 @@ public:
         value = 0.f;
     }
   }
+  
+  float boostdb;
+  float f0;
+  float Q;
+  int type;
 
-  inline int sign(float x) {
-  	return (x >= 0.f ? 1 : -1);
+  float a1,a2,b1,b2,c,d,dt,srate;
+  float BB[12];
+  float CC[12];
+  float z[13],y1,y2,x[6];
+  float K;
+  float w0;
+ 
+  float A11(float t) {
+	if (Q >= 0.5) {
+		return (exp(-a1*w0*t/2.f)*cos(d*w0*t/2.f)-(a1/d)*exp(-a1*w0*t/2.f)*sin(d*w0*t/2.f));
+	} else {
+		return (exp(-a1*w0*t/2.f)*cosh(d*w0*t/2.f)-(a1/d)*exp(-a1*w0*t/2.f)*sinh(d*w0*t/2.f));
+	}
   }
 
-  inline float from_dB(float gdb) {
-  	return (exp(gdb/20.f*log(10.f)));
+  float A12(float t) {
+	if (Q >= 0.5) {
+		return ((2.f/d)*exp(-a1*w0*t/2.f)*sin(d*w0*t/2.f));
+	} else {
+		return ((2.f/d)*exp(-a1*w0*t/2.f)*sinh(d*w0*t/2.f));
+	}
   }
 
-  inline float to_dB(float g) {
-  	return (20.f*log10(g));
+  float A21(float t) {
+	if (Q >= 0.5) {
+		return (-(2.f*a2/d)*exp(-a1*w0*t/2.f)*sin(d*w0*t/2.f));
+	} else {
+		return (-(2.f*a2/d)*exp(-a1*w0*t/2.f)*sinh(d*w0*t/2.f));
+	}
   }
 
-  float x1,x2,y1,y2;
-  float a0x,a1x,a2x,b0x,b1x,b2x;
-  float a0y,a1y,a2y,b0y,b1y,b2y;
-  float gainx,gainy;
-  float srate;
-
- void run(uint32_t nframes) {
-  
-  float dcgain1 = 1.f; 
-  float boost1 = exp(*p(0)/20.f*log(10.f));
-  float boostabs1 = exp(fabs(*p(0))/40.f*log(10.f));
-  float q1 = *p(1);
-  float fc1 = *p(2)/srate;
-  float w01 = fc1*2.f*M_PI;
-  
-  float bwgain1 = (*p(0) == 0.f) ? 1.f : (*p(0) < 0.f) ? boost1*from_dB(3.f) : boost1*from_dB(-3.f);
-  float bw1 = fc1 / q1;
-  
- /* 
-  float dcgain2 = *p(5);
-  float boost2 = *p(6);
-  float bwgain2 = *p(7);
-  float fc2 = *p(8)*2.f*M_PI / srate;
-  float bw2 = *p(9)*2.f*M_PI / srate;
- */
-  
-  uint32_t i = 0;
-
-  peq(dcgain1,boost1,bwgain1,w01,bw1,&a0x,&a1x,&a2x,&b0x,&b1x,&b2x,&gainx);
-  //peq(dcgain2,boost2,bwgain2,fc2,bw2,&a0y,&a1y,&a2y,&b0y,&b1y,&b2y,&gainy);
-  for (i = 0; i < nframes; ++i) {
-    sanitize_denormal(p(4)[i]);
-    sanitize_denormal(x1);
-    sanitize_denormal(x2);
-    sanitize_denormal(y1);
-    sanitize_denormal(y2);
-    p(4)[i] = (p(3)[i] * b0x + x1 * b1x + x2 * b2x - y1 * a1x - y2 * a2x);
-    x2 = x1;
-    y2 = y1;
-    x1 = p(3)[i];
-    y1 = p(4)[i];
+  float A22(float t) {
+	if (Q >= 0.5) {
+		return (exp(-a1*w0*t/2.f)*cos(d*w0*t/2.f)+(a1/d)*exp(-a1*w0*t/2.f)*sin(d*w0*dt/2.f));
+	} else {
+		return (exp(-a1*w0*t/2.f)*cosh(d*w0*t/2.f)+(a1/d)*exp(-a1*w0*t/2.f)*sinh(d*w0*t/2.f));
+	}
   }
- }  
 
- void peq(float G0, float G, float GB, float w0, float Dw, 
- 	float *a0, float *a1, float *a2, float *b0, float *b1, float *b2, float *gn) {
+  float sinc(float t) {
+	return ((t==0.f) ? 1.f : sin(M_PI*t)/(M_PI*t));
+  }
+
+  float simpson1(int j, float a, float b, float n) {
+        float ret;
+	double h = (b - a) / n;
+        float s;
+        int i;
+        s = Bf(a,j) + Bf(b,j);
+
+        for (i = 1; i < n; i += 2) {
+                s += 4.f * Bf(a + i * h, j);
+        }
+
+        for (i = 2; i < n-1; i += 2) {
+                s += 2.f * Bf(a + i * h, j);
+        }
+
+        ret = s * h / 3.f;
+//	sanitize_denormal(ret);
+	return (ret);
+  }
+
+  float simpson2(int j, float a, float b, float n) {
+        float ret;
+	double h = (b - a) / n;
+        float s;
+        int i;
+        s = Cf(a,j) + Cf(b,j);
+
+        for (i = 1; i < n; i += 2) {
+                s += 4.f * Cf(a + i * h, j);
+        }
+
+        for (i = 2; i < n-1; i += 2) {
+                s += 2.f * Cf(a + i * h, j);
+        }
+
+        ret = s * h / 3.f;
+//	sanitize_denormal(ret);
+	return (ret);
+  }
+
+
+  float Bf(float s, int j) {
+        return ((A11(dt-s)*b1*w0 + A12(dt-s)*b2*w0)*sinc((s+j*dt)/dt)*(0.54f+0.46f*cos(M_PI*(s+j*dt)/(5.f*dt))));
+  }
+
+  float Cf(float s, int j) {
+        return ((A21(dt-s)*b1*w0 + A22(dt-s)*b2*w0)*sinc((s+j*dt)/dt)*(0.54f+0.46f*cos(M_PI*(s+j*dt)/(5.f*dt))));
+  }
+
+ 
+  void run(uint32_t nframes) {
+  int ii;
+  uint32_t i;
+
+  boostdb = *p(0);
+  f0 = *p(1);
+  Q = *p(2);
+  type = *p(3);
+
+  K = exp(boostdb/40.f*log(10.f));
+  w0 = 2.f*M_PI*f0 / srate;
+  dt = 1.f/srate*10000.f;// / srate;
+
+    switch (type) {
+        case PEAKING:
+                a1 = 1.f / (Q*K);
+                a2 = 1.f;
+                b1 = (K - 1.f) / (K*Q);
+                b2 = 0.f;
+                c = 1.f;
+                break;
+
+        case LOWSHELF:
+                a1 = 1.f / (sqrt(K)*Q);
+                a2 = 1.f / K;
+                b1 = (sqrt(K) - 1.f) / (sqrt(K)*Q);
+                b2 = (K - 1.f) / K;
+                c = 1.f;
+                break;
+
+        case HIGHSHELF:
+                a1 = sqrt(K) / Q;
+                a2 = K;
+                b1 = (sqrt(K) - K*K*sqrt(K)) / Q;
+                b2 = K - K*K*K;
+                c = K*K;
+                break;
+        default:
+		printf("wtf type=%d\n",type);
+    }
+
+    d = sqrt(std::abs(4.f*a2-a1*a1));
 	
-	float F,G00,F00,num,den,G1,G01,G11,F01,F11,W2,Dww,C,D,B,A;
-	F = fabs(G*G - GB*GB);
-	G00 = fabs(G*G - G0*G0);
-	F00 = fabs(GB*GB - G0*G0);
-	num = G0*G0 * (w0*w0 - M_PI*M_PI)*(w0*w0 - M_PI*M_PI) 
-		+ G*G * F00 * M_PI*M_PI * Dw*Dw / F;
-	den = (w0*w0 - M_PI*M_PI)*(w0*w0 - M_PI*M_PI)
-		+ F00 * M_PI*M_PI * Dw*Dw / F;
-	G1 = sqrt(num/den);
-	G01 = fabs(G*G - G0*G1);
- 	G11 = fabs(G*G - G1*G1);
-	F01 = fabs(GB*GB - G0*G1);
-	F11 = fabs(GB*GB - G1*G1);
-	W2 = sqrt(G11 / G00) * tan(w0/2.f)*tan(w0/2.f);
-	Dww = (1.f + sqrt(F00 / F11) * W2) * tan(Dw/2.f);
-	C = F11 * Dww*Dww - 2.f * W2 * (F01 - sqrt(F00 * F11));
-	D = 2.f * W2 * (G01 - sqrt(G00 * G11));
-	A = sqrt((C + D) / F);
-	B = sqrt((G*G * C + GB*GB * D) / F);
-	*gn = G1;
-	*b0 = (G1 + G0*W2 + B) / (1.f + W2 + A);
-	*b1 = -2.f*(G1 - G0*W2) / (1.f + W2 + A);
-	*b2 = (G1 - B + G0*W2) / (1.f + W2 + A);
-	*a0 = 1.f;
-	*a1 = -2.f*(1.f - W2) / (1.f + W2 + A);
-	*a2 = (1 + W2 - A) / (1.f + W2 + A);
 
-  	sanitize_denormal(*b1);
-  	sanitize_denormal(*b2);
-  	sanitize_denormal(*a0);
-  	sanitize_denormal(*a1);
-  	sanitize_denormal(*a2);
-  	sanitize_denormal(*gn);
- 	if (is_nan(*b0)) { *b0 = 1.f; }
-  }
+    for (ii = 0; ii <= 10; ++ii) {
+	BB[ii] = simpson1(ii-5, 0.f, dt, 10.f);
+	CC[ii] = simpson2(ii-5, 0.f, dt, 10.f);
+//	printf("%d:%f:%f\n",ii,BB[ii],CC[ii]);
+    }
+
+
+    float aa22 = A22(dt);
+    float aa12 = A12(dt);
+
+    for (i = 0; i < nframes; ++i) {
+      int k;
+      sanitize_denormal(p(4)[i]);
+      sanitize_denormal(z[12]);
+      sanitize_denormal(z[11]);
+      sanitize_denormal(z[10]);
+      sanitize_denormal(z[9]);
+      sanitize_denormal(z[8]);
+      sanitize_denormal(z[7]);
+      sanitize_denormal(z[6]);
+      sanitize_denormal(z[5]);
+      sanitize_denormal(z[4]);
+      sanitize_denormal(z[3]);
+      sanitize_denormal(z[2]);
+      sanitize_denormal(z[1]);
+      for (k = 0; k <= 10; ++k) {
+ //       sanitize_denormal(BB[k]);
+ //       sanitize_denormal(CC[k]);
+      }
+      sanitize_denormal(y2);
+      sanitize_denormal(y1);
+
+
+      p(5)[i] = -BB[10]*aa22-CC[10]*aa12*z[12] + 
+	(-BB[9]*aa22 - CC[9]*aa12 + BB[10])*z[11] + 
+	(-BB[8]*aa22 - CC[8]*aa12 + BB[9])*z[10] + 
+	(-BB[7]*aa22 - CC[7]*aa12 + BB[8])*z[9] + 
+	(-BB[6]*aa22 - CC[6]*aa12 + BB[7])*z[8] + 
+	(-BB[5]*aa22 - CC[5]*aa12 + BB[6] + 
+		c*(A11(dt)*A22(dt)-A21(dt)*A12(dt)))*z[7] + 
+	(-BB[4]*aa22 - CC[4]*aa12 + BB[5] - 
+		c*(A11(dt)+A22(dt)))*z[6] + 
+	(-BB[3]*aa22 - CC[3]*aa12 + BB[4] +
+		c)*z[5] + 
+	(-BB[2]*aa22 - CC[2]*aa12 + BB[3])*z[4] + 
+	(-BB[1]*aa22 - CC[1]*aa12 + BB[2])*z[3] + 
+	(-BB[0]*aa22 - CC[0]*aa12 + BB[1])*z[2] + 
+	(BB[0]*z[1]) -
+	p(4)[i]*1.f - (A11(dt)+A22(dt))*y1 - (A11(dt)*A22(dt)-A12(dt)*A21(dt))*y2;
+
+      if(p(5)[i] > 1.f) { p(5)[i] = 1.f; }
+      if(p(5)[i] < -1.f) { p(5)[i] = -1.f; }
+
+      z[12] = z[11];
+      z[11] = z[10];
+      z[10] = z[9];
+      z[9] = z[8];
+      z[8] = z[7];
+      z[7] = z[6];
+      z[6] = z[5];
+      z[5] = z[4];
+      z[4] = z[3];
+      z[3] = z[2];
+      z[2] = z[1];
+      z[1] = p(4)[i];
+
+      y2 = y1;
+      y1 = p(5)[i];
+    }
+  } 
 
 };
 
