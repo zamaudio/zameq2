@@ -37,6 +37,8 @@ instantiate(const LV2_Descriptor*     descriptor,
 {
 	ZamEQ2* zameq2 = (ZamEQ2*)malloc(sizeof(ZamEQ2));
 	zameq2->srate = rate;
+	zameq2->x1=zameq2->x2=zameq2->y1=zameq2->y2=0.f;
+	zameq2->a0x=zameq2->a1x=zameq2->a2x=zameq2->b0x=zameq2->b1x=zameq2->b2x=zameq2->gainx=0.f;
 	return (LV2_Handle)zameq2;
 }
 
@@ -67,7 +69,7 @@ connect_port(LV2_Handle instance,
 }
 
 // Works on little-endian machines only
-inline bool 
+static inline bool 
 is_nan(float& value ) {
     if (((*(uint32_t *) &value) & 0x7fffffff) > 0x7f800000) {
       return true;
@@ -76,24 +78,24 @@ is_nan(float& value ) {
 }
 
 // Force already-denormal float value to zero
-inline void 
+static inline void 
 sanitize_denormal(float& value) {
     if (is_nan(value)) {
         value = 0.f;
     }
 }
 
-inline int 
+static inline int 
 sign(float x) {
         return (x >= 0.f ? 1 : -1);
 }
 
-inline float 
+static inline float 
 from_dB(float gdb) {
         return (exp(gdb/20.f*log(10.f)));
 }
 
-inline float
+static inline float
 to_dB(float g) {
         return (20.f*log10(g));
 }
@@ -103,7 +105,7 @@ activate(LV2_Handle instance)
 {
 }
 
-void
+static void
 peq(float G0, float G, float GB, float w0, float Dw,
         float *a0, float *a1, float *a2, float *b0, float *b1, float *b2, float *gn) {
 

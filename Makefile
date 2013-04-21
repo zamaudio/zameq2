@@ -6,6 +6,8 @@ LV2DIR ?= $(PREFIX)/$(LIBDIR)/lv2
 
 OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only
 
+#OPTIMIZATIONS ?=
+
 LDFLAGS ?= -Wl,--as-needed
 CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
 CFLAGS ?= $(OPTIMIZATIONS) -Wall
