@@ -176,15 +176,17 @@ run(LV2_Handle instance, uint32_t n_samples)
 	//printf("in(0) = %f\n\n",p(3)[0]);
 
 	for (uint32_t pos = 0; pos < n_samples; pos++) {
+		float in = input[pos];
 		sanitize_denormal(zameq2->x1);
 		sanitize_denormal(zameq2->x2);
 		sanitize_denormal(zameq2->y1);
 		sanitize_denormal(zameq2->y2);
-		output[pos] = (input[pos] * zameq2->b0x + zameq2->x1 * zameq2->b1x + zameq2->x2 * zameq2->b2x - zameq2->y1 * zameq2->a1x - zameq2->y2 * zameq2->a2x);
+		
+		output[pos] = (in * zameq2->b0x + zameq2->x1 * zameq2->b1x + zameq2->x2 * zameq2->b2x - zameq2->y1 * zameq2->a1x - zameq2->y2 * zameq2->a2x);
 		sanitize_denormal(output[pos]);
 		zameq2->x2 = zameq2->x1;
 		zameq2->y2 = zameq2->y1;
-		zameq2->x1 = input[pos];
+		zameq2->x1 = in;
 		zameq2->y1 = output[pos];
 	}
 }
