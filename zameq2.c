@@ -20,7 +20,7 @@ typedef enum {
 	ZAMEQ2_FREQ2 = 7,
 	
 	ZAMEQ2_BOOSTDBL = 8,
-	ZAMEQ2_QL = 9,
+	ZAMEQ2_SLOPEDBL = 9,
 	ZAMEQ2_FREQL = 10
 } PortIndex;
 
@@ -37,7 +37,7 @@ typedef struct {
 	float* freq2;
 
 	float* boostdbl;
-	float* ql;
+	float* slopedbl;
 	float* freql;
 
 	float x1,x2,y1,y2;
@@ -112,8 +112,8 @@ connect_port(LV2_Handle instance,
 	case ZAMEQ2_BOOSTDBL:
 		zameq2->boostdbl = (float*)data;
 		break;
-	case ZAMEQ2_QL:
-		zameq2->ql = (float*)data;
+	case ZAMEQ2_SLOPEDBL:
+		zameq2->slopedbl = (float*)data;
 		break;
 	case ZAMEQ2_FREQL:
 		zameq2->freql = (float*)data;
@@ -199,9 +199,9 @@ peq(float G0, float G, float GB, float w0, float Dw,
 }
 
 static bool
-shelfeq(float G0, float G, float GB, float w0, float Dw,
+shelfeq(float G0, float G, float GB, float w0, float Dw, float q,
 		float B[][5], float A[][5], float Bh[][5], float Ah[][5]) {
-	float r,L,c0,WB,e,g,g0,b,D,phi,si,b0h,b1h,b2h,a1h,a2h,b0,b1,b2,b3,b4,a1,a2,a3,a4;
+	float r,L,c0,WB,e,g,g0,b,D,phi,si,b0h,b1h,b2h,a1h,a2h,b0,b1,b2,b3,b4,a0,a1,a2,a3,a4,alpha;
 	int N = 2;
 	int i;
 
@@ -231,8 +231,8 @@ shelfeq(float G0, float G, float GB, float w0, float Dw,
 	A[0][3] = 0.f;
 	A[0][4] = 0.f;
 
-	if (G==G0) 
-		return false; 
+	//if (G==G0) 
+	//	return false; 
 
 	c0 = cos(w0); 
 
@@ -245,7 +245,8 @@ shelfeq(float G0, float G, float GB, float w0, float Dw,
 	if (w0==M_PI)
 		c0 = -1.f;
 
-	WB = tan(Dw/2.f);
+	//WB = tan(Dw/2.f);
+	WB = tan(Dw/(q*q));
 	e = sqrt((G*G - GB*GB)/(GB*GB - G0*G0)); 
 	g = powf(G,1.f/N); 
 	g0 = powf(G0,1.f/N); 
@@ -343,6 +344,24 @@ shelfeq(float G0, float G, float GB, float w0, float Dw,
 		}
 	}
 
+ 
+	float AA  = sqrt(G);
+	
+	alpha = sin(w0)/2.f * sqrt( (AA + 1.f/AA)*(1.f/q - 1.f) + 2.f );
+	b0 =    AA*( (AA+1.f) - (AA-1.f)*cos(w0) + 2.f*sqrt(AA)*alpha );
+        b1 =  2.f*AA*( (AA-1.f) - (AA+1.f)*cos(w0)                   );
+        b2 =    AA*( (AA+1.f) - (AA-1.f)*cos(w0) - 2.f*sqrt(AA)*alpha );
+        a0 =        (AA+1.f) + (AA-1.f)*cos(w0) + 2.f*sqrt(AA)*alpha;
+        a1 =   -2.f*( (AA-1.f) + (AA+1.f)*cos(w0)                   );
+        a2 =        (AA+1.f) + (AA-1.f)*cos(w0) - 2.f*sqrt(AA)*alpha;
+	
+	B[2][0] = b0/a0;
+        B[2][1] = b1/a0;
+        B[2][2] = b2/a0;
+        A[2][0] = 1.f;
+        A[2][1] = a1/a0;
+        A[2][2] = a2/a0;
+
 	return true;
 }
 
@@ -368,7 +387,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	const float        freq2 = *(zameq2->freq2);
 	
 	const float        boostdbl = *(zameq2->boostdbl);
-	const float        ql = *(zameq2->ql);
+	const float        slopedbl = *(zameq2->slopedbl);
 	const float        freql = *(zameq2->freql);
 
 	float dcgain = 1.f;
@@ -397,12 +416,13 @@ run(LV2_Handle instance, uint32_t n_samples)
 	
 
 	float bwgaindbl = to_dB(Al);
+	//float bwgaindbl = to_dB((boostl-dcgain)*exp(-1.f/ql)+dcgain);
 	
 	peq(dcgain,boost1,bwgain1,w01,bw1,&zameq2->a0x,&zameq2->a1x,&zameq2->a2x,&zameq2->b0x,&zameq2->b1x,&zameq2->b2x,&zameq2->gainx);
 	peq(dcgain,boost2,bwgain2,w02,bw2,&zameq2->a0y,&zameq2->a1y,&zameq2->a2y,&zameq2->b0y,&zameq2->b1y,&zameq2->b2y,&zameq2->gainy);
-	shelfeq(0.f,boostdbl,bwgaindbl,0.f,bwl,zameq2->B,zameq2->A,zameq2->Bh,zameq2->Ah);
+	shelfeq(0.f,boostdbl,bwgaindbl,2.f*M_PI*freql/zameq2->srate,bwl,slopedbl,zameq2->B,zameq2->A,zameq2->Bh,zameq2->Ah);
 
-	printf("Gdb=%f fc=%f A=%f Q=%f bw=%f GBdb=%f\n",boostdbl,fcl, Al, ql, bwl, bwgaindbl);
+	//printf("Gdb=%f fc=%f A=%f Q=%f bw=%f GBdb=%f\n",boostdbl,fcl, Al, ql, bwl, bwgaindbl);
 	printf("B=[%f, %f, %f; %f, %f, %f]\n",zameq2->B[1][0],zameq2->B[1][1],zameq2->B[1][2],zameq2->B[2][0],zameq2->B[2][1],zameq2->B[2][2]);
 	printf("A=[%f, %f, %f; %f, %f, %f]\n",zameq2->A[1][0],zameq2->A[1][1],zameq2->A[1][2],zameq2->A[2][0],zameq2->A[2][1],zameq2->A[2][2]);
 
