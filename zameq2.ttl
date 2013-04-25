@@ -152,8 +152,48 @@
     lv2:portProperty pprops:hasStrictBounds ;
     lv2:portProperty pprops:logarithmic ;
     lv2:designation param:cutoffFrequency;
-    lv2:default 1000.0 ;
+    lv2:default 400.0 ;
     lv2:minimum 15.0 ;
+    lv2:maximum 2000.0 ;
+    ue:unit ue:hz;
+  ],
+
+  [
+    a lv2:ControlPort, lv2:InputPort;
+    lv2:index 11;
+    lv2:symbol "boostdbh";
+    lv2:name "Boost/Cut Highshelf";
+    lv2:portProperty pprops:hasStrictBounds ;
+    lv2:designation param:gain ;
+    lv2:minimum -20.0 ;
+    lv2:maximum 20.0 ;
+    lv2:default 0.0 ;
+    ue:unit ue:coef;
+  ],
+
+  [
+    a lv2:ControlPort, lv2:InputPort;
+    lv2:index 12;
+    lv2:symbol "slopedbh";
+    lv2:name "Slope Highshelf";
+    lv2:portProperty pprops:hasStrictBounds ;
+    lv2:portProperty pprops:logarithmic ;
+    lv2:minimum 1.0;
+    lv2:maximum 1.5;
+    lv2:default 1.0;
+    ue:unit ue:coef;
+  ],
+
+  [
+    a lv2:ControlPort, lv2:InputPort;
+    lv2:index 13;
+    lv2:symbol "freqh";
+    lv2:name "Frequency Highshelf";
+    lv2:portProperty pprops:hasStrictBounds ;
+    lv2:portProperty pprops:logarithmic ;
+    lv2:designation param:cutoffFrequency;
+    lv2:default 11000.0 ;
+    lv2:minimum 1000.0 ;
     lv2:maximum 20000.0 ;
     ue:unit ue:hz;
   ].
