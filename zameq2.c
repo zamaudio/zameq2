@@ -66,6 +66,8 @@ instantiate(const LV2_Descriptor*     descriptor,
 	zameq2->srate = rate;
 	zameq2->x1=zameq2->x2=zameq2->y1=zameq2->y2=0.f;
 	zameq2->x1a=zameq2->x2a=zameq2->y1a=zameq2->y2a=0.f;
+	zameq2->zln1a=zameq2->zln2a=zameq2->zld1a=zameq2->zld2a=0.f;
+	zameq2->zln1b=zameq2->zln2b=zameq2->zld1b=zameq2->zld2b=0.f;	
 	zameq2->a0x=zameq2->a1x=zameq2->a2x=zameq2->b0x=zameq2->b1x=zameq2->b2x=zameq2->gainx=0.f;
 	zameq2->a0y=zameq2->a1y=zameq2->a2y=zameq2->b0y=zameq2->b1y=zameq2->b2y=zameq2->gainy=0.f;
 	for (i = 0; i < 5; ++i) {
@@ -151,6 +153,11 @@ from_dB(float gdb) {
 static inline float
 to_dB(float g) {
         return (20.f*log10(g));
+}
+
+static float
+arcsinh (float x) {
+	return (log(2.f*x+sqrt(x*x+1.f)));
 }
 
 static void
@@ -363,11 +370,6 @@ shelfeq(float G0, float G, float GB, float w0, float Dw, float q,
         A[2][2] = a2/a0;
 
 	return true;
-}
-
-static float
-arcsinh (float x) {
-	return (log(2.f*x+sqrt(x*x+1.f)));
 }
 
 static void
