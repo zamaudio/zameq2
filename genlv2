@@ -1,0 +1,74 @@
+#!/bin/bash
+
+URI_PREFIX=http://zamaudio.com/lv2
+FAUST_META=1
+FAUST_MIDICC=0
+
+PROCARCH="-fPIC"
+CXXFLAGS="-O3 -march=native -mfpmath=sse -msse -msse2 -ffast-math -ftree-vectorize"
+
+# We recognize the following special options here:
+# -nometa: ignore metadata (author information etc.) from the Faust source
+# -nomidicc: plugin doesn't process MIDI control data
+# -uri-prefix URI: URI prefix of plugin (arg must be a valid URI)
+
+for ((i=1;i<$#+1;i++)); do
+    p=${!i}
+    if [ $p = "-omp" ]; then
+    	: ignore
+    elif [ $p = "-icc" ]; then
+	CXX=icpc
+    	CXXFLAGS="-O3 -xHost -ftz -fno-alias -fp-model fast=2"
+    elif [ $p = "-osc" ]; then
+    	: ignore
+    elif [ $p = "-httpd" ]; then
+    	: ignore
+    elif [ $p = "-nometa" ]; then
+    	FAUST_META=0
+    elif [ $p = "-nomidicc" ]; then
+    	FAUST_MIDICC=0
+    elif [ $p = "-dyn-manifest" ]; then
+    	dyn_manifest=yes
+    elif [ $p = "-uri-prefix" ]; then
+	(( i++ ))
+    	URI_PREFIX=${!i}
+    elif [ $p = "-arch32" ]; then
+	PROCARCH="-m32 -L/usr/lib32"
+    elif [ $p = "-arch64" ]; then
+	PROCARCH="-m64 -fPIC"
+    elif [ ${p:0:1} = "-" ]; then
+	OPTIONS="$OPTIONS $p"
+    elif [[ -e "$p" ]]; then
+	FILES="$FILES $p"
+    else
+	OPTIONS="$OPTIONS $p"
+    fi
+done
+
+FILES=( $FILES )
+if [ ${#FILES[@]} = 0 ]; then
+    echo "$0: no filename specified" >&2
+    exit 1
+elif [ ${#FILES[@]} -gt 1 ]; then
+    echo "$0: multiple filenames specified" >&2
+    exit 1
+fi
+
+arch=lv2.cpp
+dspname=${FILES[0]}
+SRCDIR=$(dirname "$dspname")/lv2
+
+clsname=`basename "$dspname" .dsp`
+cppname="$clsname.cpp"
+soname="$clsname.so"
+lv2name="$clsname.lv2"
+tmpdir=lv2
+
+CXX=g++
+CPPFLAGS="-DPLUGIN_URI=\"$URI_PREFIX/$clsname\" -DFAUST_META=$FAUST_META -DFAUST_MIDICC=$FAUST_MIDICC"
+
+# Create the temp directory and the bundle directory inside it.
+mkdir -p $tmpdir/$lv2name
+# Compile the Faust module.
+faust -a $arch -double -cn "$clsname" $OPTIONS "$dspname" -o "$tmpdir/$cppname"
+

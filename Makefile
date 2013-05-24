@@ -1,76 +1,35 @@
-#!/usr/bin/make -f
+all: lv2/zameq2.lv2/zameq2.ttl ladspa/zameq2.so
 
-PREFIX ?= /usr
-LIBDIR ?= lib
-LV2DIR ?= $(PREFIX)/$(LIBDIR)/lv2
+ladspa: ladspa/zameq2.so
 
-OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only
+lv2: lv2/zameq2.lv2/zameq2.ttl
 
-#OPTIMIZATIONS ?=
+lv2/zameq2.lv2/zameq2.ttl: lv2/zameq2.cpp
+	./compilelv2 zameq2.dsp
 
-LDFLAGS ?= -Wl,--as-needed
-CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
-CFLAGS ?= $(OPTIMIZATIONS) -Wall
+lv2/zameq2.cpp:
+	./genlv2 zameq2.dsp	
 
-###############################################################################
-BUNDLE = zameq2.lv2
+ladspa/zameq2.so: ladspa/zameq2.dsp.cpp
+	./compileladspa zameq2.dsp
 
-CXXFLAGS += -fPIC -DPIC
-CFLAGS += -fPIC -DPIC
+ladspa/zameq2.dsp.cpp:
+	./genladspa zameq2.dsp
 
-UNAME=$(shell uname)
-ifeq ($(UNAME),Darwin)
-  LIB_EXT=.dylib
-  LDFLAGS += -dynamiclib
-else
-  LDFLAGS += -shared -Wl,-Bstatic -Wl,-Bdynamic
-  LIB_EXT=.so
-endif
-
-
-ifeq ($(shell pkg-config --exists lv2 lv2core lv2-plugin || echo no), no)
-  $(error "LV2 SDK was not found")
-else
-  LV2FLAGS=`pkg-config --cflags --libs lv2 lv2core lv2-plugin`
-endif
-
-ifeq ($(shell pkg-config --exists lv2-gui || echo no), no)
-  $(error "LV2-GUI is required ")
-else
-  LV2GUIFLAGS=`pkg-config --cflags --libs lv2-gui lv2 lv2core lv2-plugin`
-endif
-
-
-$(BUNDLE): manifest.ttl zameq2.ttl zameq2$(LIB_EXT)
-#zameq2_gui$(LIB_EXT)
-	rm -rf $(BUNDLE)
-	mkdir $(BUNDLE)
-	cp manifest.ttl zameq2.ttl zameq2$(LIB_EXT) $(BUNDLE)
-
-zameq2$(LIB_EXT): zameq2.c
-	$(CXX) -o zameq2$(LIB_EXT) \
-		$(CXXFLAGS) \
-		zameq2.c \
-		$(LV2FLAGS) $(LDFLAGS)
-
-#zamcomp_gui$(LIB_EXT): zamcomp_gui.cpp zamcomp.peg
-#	$(CXX) -o zamcomp_gui$(LIB_EXT) \
-#		$(CXXFLAGS) \
-#		zamcomp_gui.cpp \
-#		$(LV2GUIFLAGS) $(LDFLAGS)
-
-zameq2.peg: zameq2.ttl
-	lv2peg zameq2.ttl zameq2.peg
-
-install: $(BUNDLE)
-	install -d $(DESTDIR)$(LV2DIR)/$(BUNDLE)
-	install -t $(DESTDIR)$(LV2DIR)/$(BUNDLE) $(BUNDLE)/*
-#	install zameq2_gui$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
-
+install:
+	mkdir -p /usr/local/lib/lv2
+	mkdir -p /usr/local/lib/ladspa
+	cp -a lv2/zameq2.lv2 /usr/local/lib/lv2
+	cp -a ladspa/zameq2.so /usr/local/lib/ladspa
+	
 uninstall:
-	rm -rf $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+	rm -fr /usr/local/lib/lv2/zameq2.lv2
+	rm -f /usr/local/lib/ladspa/zameq2.so
 
 clean:
-	rm -rf $(BUNDLE) zameq2$(LIB_EXT) zameq2_gui$(LIB_EXT) zameq2.peg
+	rm -fr lv2/zameq2.lv2
+	rm -f ladspa/zameq2.so
 
-.PHONY: clean install uninstall
+distclean:
+	rm -fr lv2/*
+	rm -fr ladspa/*
