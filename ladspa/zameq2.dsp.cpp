@@ -2,19 +2,22 @@
 // name: "ZamEQ2"
 // author: "Damien Zammit"
 // copyright: "2013"
-// version: "1.00"
+// version: "2.1"
 // license: "GPLv2"
 //
-// Code generated with Faust 0.9.61 (http://faust.grame.fr)
+// Code generated with Faust 0.9.62 (http://faust.grame.fr)
 //-----------------------------------------------------
 /* link with  */
 #include <math.h>
+#ifndef FAUSTPOWER
+#define FAUSTPOWER
 #include <cmath>
-template <int N> inline float faustpower(float x) 		{ return powf(x,N); } 
-template <int N> inline double faustpower(double x) 	{ return pow(x,N); }
-template <int N> inline int faustpower(int x) 			{ return faustpower<N/2>(x) * faustpower<N-N/2>(x); } 
-template <> 	 inline int faustpower<0>(int x) 		{ return 1; }
-template <> 	 inline int faustpower<1>(int x) 		{ return x; }
+template <int N> inline float faustpower(float x)          { return powf(x,N); } 
+template <int N> inline double faustpower(double x)        { return pow(x,N); }
+template <int N> inline int faustpower(int x)              { return faustpower<N/2>(x) * faustpower<N-N/2>(x); } 
+template <> 	 inline int faustpower<0>(int x)            { return 1; }
+template <> 	 inline int faustpower<1>(int x)            { return x; }
+#endif
 /************************************************************************
 
 	IMPORTANT NOTE : this file contains two clearly delimited sections :
@@ -146,7 +149,7 @@ class mydsp : public dsp {
 		m->declare("name", "ZamEQ2");
 		m->declare("author", "Damien Zammit");
 		m->declare("copyright", "2013");
-		m->declare("version", "1.00");
+		m->declare("version", "2.1");
 		m->declare("license", "GPLv2");
 		m->declare("math.lib/name", "Math Library");
 		m->declare("math.lib/author", "GRAME");
@@ -225,7 +228,7 @@ class mydsp : public dsp {
 		instanceInit(samplingFreq);
 	}
 	virtual void buildUserInterface(UI* interface) {
-		interface->openVerticalBox("ZamEQ2");
+		interface->openVerticalBox("zameq2");
 		interface->addHorizontalSlider("0 Boost Lowshelf (dB)", &fslider3, 0.0, -2e+01, 2e+01, 0.1);
 		interface->declare(&fslider4, "unit", "PK");
 		interface->addHorizontalSlider("0 Freq Lowshelf", &fslider4, 4e+01, 1.0, 1e+02, 0.01);
@@ -252,23 +255,23 @@ class mydsp : public dsp {
 		interface->closeBox();
 	}
 	virtual void compute (int count, FAUSTFLOAT** input, FAUSTFLOAT** output) {
-		double 	fSlow0 = (0.010000000000000009 * fslider0);
-		double 	fSlow1 = (0.010000000000000009 * fslider1);
-		double 	fSlow2 = (0.010000000000000009 * fslider2);
-		double 	fSlow3 = (0.010000000000000009 * fslider3);
-		double 	fSlow4 = (0.010000000000000009 * fslider4);
-		double 	fSlow5 = (0.010000000000000009 * fslider5);
-		double 	fSlow6 = (0.010000000000000009 * fslider6);
-		double 	fSlow7 = (0.010000000000000009 * fslider7);
-		double 	fSlow8 = (0.010000000000000009 * fslider8);
-		double 	fSlow9 = (0.010000000000000009 * fslider9);
-		double 	fSlow10 = (0.010000000000000009 * fslider10);
-		double 	fSlow11 = (0.010000000000000009 * fslider11);
-		double 	fSlow12 = (0.010000000000000009 * fslider12);
-		int 	iSlow13 = int((fcheckbox0 == 1.0));
-		double 	fSlow14 = (0.010000000000000009 * fslider13);
-		int 	iSlow15 = int((fcheckbox1 == 1.0));
-		double 	fSlow16 = (0.010000000000000009 * fslider14);
+		double 	fSlow0 = (0.010000000000000009 * double(fslider0));
+		double 	fSlow1 = (0.010000000000000009 * double(fslider1));
+		double 	fSlow2 = (0.010000000000000009 * double(fslider2));
+		double 	fSlow3 = (0.010000000000000009 * double(fslider3));
+		double 	fSlow4 = (0.010000000000000009 * double(fslider4));
+		double 	fSlow5 = (0.010000000000000009 * double(fslider5));
+		double 	fSlow6 = (0.010000000000000009 * double(fslider6));
+		double 	fSlow7 = (0.010000000000000009 * double(fslider7));
+		double 	fSlow8 = (0.010000000000000009 * double(fslider8));
+		double 	fSlow9 = (0.010000000000000009 * double(fslider9));
+		double 	fSlow10 = (0.010000000000000009 * double(fslider10));
+		double 	fSlow11 = (0.010000000000000009 * double(fslider11));
+		double 	fSlow12 = (0.010000000000000009 * double(fslider12));
+		int 	iSlow13 = int((double(fcheckbox0) == 1.0));
+		double 	fSlow14 = (0.010000000000000009 * double(fslider13));
+		int 	iSlow15 = int((double(fcheckbox1) == 1.0));
+		double 	fSlow16 = (0.010000000000000009 * double(fslider14));
 		FAUSTFLOAT* input0 = input[0];
 		FAUSTFLOAT* output0 = output[0];
 		for (int i=0; i<count; i++) {
@@ -348,7 +351,7 @@ class mydsp : public dsp {
 			double fTemp61 = sqrt((fTemp59 / fTemp58));
 			double fTemp62 = faustpower<2>(tan((fConst5 * fTemp48)));
 			double fTemp63 = (fTemp62 * fTemp61);
-			double fTemp64 = ((faustpower<2>((1.0 + (fTemp63 * sqrt((fTemp53 / fTemp56))))) * fTemp56) * faustpower<2>(tan((fConst6 * (fTemp48 / fTemp51)))));
+			double fTemp64 = ((fTemp56 * faustpower<2>(tan((fConst6 * (fTemp48 / fTemp51))))) * faustpower<2>((1.0 + (fTemp63 * sqrt((fTemp53 / fTemp56))))));
 			double fTemp65 = sqrt(((fTemp64 + (fTemp63 * ((2.0 * fTemp60) - (2.0 * fTemp57)))) / fTemp47));
 			double fTemp66 = (1.0 + (fTemp63 + fTemp65));
 			int iTemp67 = int((fTemp66 == 0.0));
@@ -474,16 +477,16 @@ class portCollector : public UI
 	const char* 			fPortNames[MAXPORT];		// table of port names to be used in a LADSPA_Descriptor
 	LADSPA_PortRangeHint 	fPortHints[MAXPORT];		// table of port hints to be used in a LADSPA_Descriptor
 
-	string					fPluginName;				// toplevel prefix used as plugin name
-	stack<string>			fPrefix;					// current prefix for controls name
+    std::string					fPluginName;				// toplevel prefix used as plugin name
+    std::stack<std::string>			fPrefix;					// current prefix for controls name
 
 
 	//--------------------------------------------------------------------------------------
-	string simplify(const string& src)
+    std::string simplify(const std::string& src)
 	{
 		int		i=0;
 		int		level=2;
-		string	dst;
+        std::string	dst;
 
 		while (src[i] ) {
 
@@ -546,7 +549,7 @@ class portCollector : public UI
 
 	void addPortDescr(int type, const char* label, int hint, float min=0.0, float max=0.0)
 	{
-		string fullname = simplify(fPrefix.top() + "-" + label);
+        std::string fullname = simplify(fPrefix.top() + "-" + label);
 		char * str = strdup(fullname.c_str());
 
 		fPortDescs[fInsCount + fOutsCount + fCtrlCount] = type;
@@ -565,7 +568,7 @@ class portCollector : public UI
 			fPrefix.push(label);
 
 		} else {
-			string s;
+            std::string s;
 			if (label && label[0]) {
 				s = fPrefix.top() + "-" + label;
 			} else {
@@ -665,7 +668,7 @@ class portCollector : public UI
 		descriptor->PortNames 			= fPortNames;
 		descriptor->PortRangeHints 		= fPortHints;
 
-		descriptor->Label = "ZamEQ2";
+		descriptor->Label = strdup(name);
 		descriptor->UniqueID = makeID(name);
 //		descriptor->Label = strdup(fPluginName.c_str());
 //		descriptor->UniqueID = makeID(fPluginName.c_str());
@@ -673,7 +676,7 @@ class portCollector : public UI
 		descriptor->Name = "ZamEQ2";
 //		descriptor->Name = strdup(fPluginName.c_str());
 		descriptor->Maker = "Damien Zammit";
-		descriptor->Copyright = "2013";
+		descriptor->Copyright = "GPL";
 	}
 };
 
