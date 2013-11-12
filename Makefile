@@ -28,18 +28,11 @@ else
 endif
 
 
-ifeq ($(shell pkg-config --exists lv2 lv2core lv2-plugin || echo no), no)
+ifeq ($(shell pkg-config --exists lv2 lv2-plugin || echo no), no)
   $(error "LV2 SDK was not found")
 else
-  LV2FLAGS=`pkg-config --cflags --libs lv2 lv2core lv2-plugin`
+  LV2FLAGS=`pkg-config --cflags --libs lv2 lv2-plugin`
 endif
-
-ifeq ($(shell pkg-config --exists lv2-gui || echo no), no)
-  $(error "LV2-GUI is required ")
-else
-  LV2GUIFLAGS=`pkg-config --cflags --libs lv2-gui lv2 lv2core lv2-plugin`
-endif
-
 
 $(BUNDLE): manifest.ttl zameq2.ttl zameq2$(LIB_EXT)
 #zameq2_gui$(LIB_EXT)
@@ -53,24 +46,14 @@ zameq2$(LIB_EXT): zameq2.c
 		zameq2.c \
 		$(LV2FLAGS) $(LDFLAGS)
 
-#zamcomp_gui$(LIB_EXT): zamcomp_gui.cpp zamcomp.peg
-#	$(CXX) -o zamcomp_gui$(LIB_EXT) \
-#		$(CXXFLAGS) \
-#		zamcomp_gui.cpp \
-#		$(LV2GUIFLAGS) $(LDFLAGS)
-
-zameq2.peg: zameq2.ttl
-	lv2peg zameq2.ttl zameq2.peg
-
 install: $(BUNDLE)
 	install -d $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 	install -t $(DESTDIR)$(LV2DIR)/$(BUNDLE) $(BUNDLE)/*
-#	install zameq2_gui$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
 uninstall:
 	rm -rf $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
 clean:
-	rm -rf $(BUNDLE) zameq2$(LIB_EXT) zameq2_gui$(LIB_EXT) zameq2.peg
+	rm -rf $(BUNDLE) zameq2$(LIB_EXT)
 
 .PHONY: clean install uninstall
