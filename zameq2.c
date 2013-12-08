@@ -284,18 +284,20 @@ run(LV2_Handle instance, uint32_t n_samples)
 	const double        freqh = *(zameq2->freqh);
 
 	double dcgain = 1.f;
-	
+
+	double qq1 = pow(2.0, 1.0/q1)/(pow(2.0, q1) - 1.0); //q from octave bw
 	double boost1 = from_dB(boostdb1);
   	double fc1 = freq1 / zameq2->srate;
 	double w01 = fc1*2.f*M_PI;
 	double bwgain1 = (boostdb1 == 0.f) ? 1.f : (boostdb1 < 0.f) ? boost1*from_dB(3.f) : boost1*from_dB(-3.f);
-	double bw1 = fc1 / q1;
+	double bw1 = 1.0 / qq1;
 
+	double qq2 = pow(2.0, 1.0/q2)/(pow(2.0, q2) - 1.0); //q from octave bw
 	double boost2 = from_dB(boostdb2);
   	double fc2 = freq2 / zameq2->srate;
 	double w02 = fc2*2.f*M_PI;
 	double bwgain2 = (boostdb2 == 0.f) ? 1.f : (boostdb2 < 0.f) ? boost2*from_dB(3.f) : boost2*from_dB(-3.f);
-	double bw2 = fc2 / q2;
+	double bw2 = 1.0 / qq2;
 
 	double boostl = from_dB(boostdbl);
 	double All = sqrt(boostl);
