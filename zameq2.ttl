@@ -45,7 +45,7 @@
     lv2:name "Boost/Cut 1";
     lv2:portProperty pprops:hasStrictBounds ;
     lv2:designation param:gain ;
-    lv2:minimum -20.0 ;
+    lv2:minimum -50.0 ;
     lv2:maximum 20.0 ;
     lv2:default 0.0 ;
     ue:unit ue:coef;
@@ -59,7 +59,7 @@
     lv2:portProperty pprops:hasStrictBounds ;
     lv2:portProperty pprops:logarithmic ;
     lv2:minimum 0.01 ;
-    lv2:maximum 50.0 ;
+    lv2:maximum 80.0 ;
     lv2:default 1.0 ;
     ue:unit ue:coef;
   ],
@@ -73,8 +73,8 @@
     lv2:portProperty pprops:logarithmic ;
     lv2:designation param:cutoffFrequency;
     lv2:default 250.0 ;
-    lv2:minimum 30.0 ;
-    lv2:maximum 6000.0 ;
+    lv2:minimum 10.0 ;
+    lv2:maximum 20000.0 ;
     ue:unit ue:hz;
   ],
 
@@ -85,7 +85,7 @@
     lv2:name "Boost/Cut 2";
     lv2:portProperty pprops:hasStrictBounds ;
     lv2:designation param:gain ;
-    lv2:minimum -20.0 ;
+    lv2:minimum -50.0 ;
     lv2:maximum 20.0 ;
     lv2:default 0.0 ;
     ue:unit ue:coef;
@@ -99,7 +99,7 @@
     lv2:portProperty pprops:hasStrictBounds ;
     lv2:portProperty pprops:logarithmic ;
     lv2:minimum 0.01 ;
-    lv2:maximum 50.0 ;
+    lv2:maximum 80.0 ;
     lv2:default 1.0 ;
     ue:unit ue:coef;
   ],
@@ -113,8 +113,8 @@
     lv2:portProperty pprops:logarithmic ;
     lv2:designation param:cutoffFrequency;
     lv2:default 1000.0 ;
-    lv2:minimum 500.0 ;
-    lv2:maximum 18000.0 ;
+    lv2:minimum 10.0 ;
+    lv2:maximum 20000.0 ;
     ue:unit ue:hz;
   ],
 
@@ -125,7 +125,7 @@
     lv2:name "Boost/Cut Lowshelf";
     lv2:portProperty pprops:hasStrictBounds ;
     lv2:designation param:gain ;
-    lv2:minimum -20.0 ;
+    lv2:minimum -50.0 ;
     lv2:maximum 20.0 ;
     lv2:default 0.0 ;
     ue:unit ue:coef;
@@ -153,8 +153,8 @@
     lv2:portProperty pprops:logarithmic ;
     lv2:designation param:cutoffFrequency;
     lv2:default 400.0 ;
-    lv2:minimum 15.0 ;
-    lv2:maximum 2000.0 ;
+    lv2:minimum 10.0 ;
+    lv2:maximum 20000.0 ;
     ue:unit ue:hz;
   ],
 
@@ -165,7 +165,7 @@
     lv2:name "Boost/Cut Highshelf";
     lv2:portProperty pprops:hasStrictBounds ;
     lv2:designation param:gain ;
-    lv2:minimum -20.0 ;
+    lv2:minimum -50.0 ;
     lv2:maximum 20.0 ;
     lv2:default 0.0 ;
     ue:unit ue:coef;
@@ -193,7 +193,7 @@
     lv2:portProperty pprops:logarithmic ;
     lv2:designation param:cutoffFrequency;
     lv2:default 11000.0 ;
-    lv2:minimum 1000.0 ;
+    lv2:minimum 10.0 ;
     lv2:maximum 20000.0 ;
     ue:unit ue:hz;
   ].

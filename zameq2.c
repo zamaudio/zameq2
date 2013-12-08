@@ -48,16 +48,16 @@ typedef struct {
 	float* slopedbh;
 	float* freqh;
 
-	float x1,x2,y1,y2;
-	float x1a,x2a,y1a,y2a;
-	float zln1,zln2,zld1,zld2;
-	float zhn1,zhn2,zhd1,zhd2;
-	float a0x,a1x,a2x,b0x,b1x,b2x,gainx;
-	float a0y,a1y,a2y,b0y,b1y,b2y,gainy;
-	float Bl[3];
-	float Al[3];
-	float Bh[3];
-	float Ah[3];
+	double x1,x2,y1,y2;
+	double x1a,x2a,y1a,y2a;
+	double zln1,zln2,zld1,zld2;
+	double zhn1,zhn2,zhd1,zhd2;
+	double a0x,a1x,a2x,b0x,b1x,b2x,gainx;
+	double a0y,a1y,a2y,b0y,b1y,b2y,gainy;
+	double Bl[3];
+	double Al[3];
+	double Bh[3];
+	double Ah[3];
 	float srate;
 } ZamEQ2;
 
@@ -141,35 +141,26 @@ connect_port(LV2_Handle instance,
 	}
 }
 
-// Works on little-endian machines only
-static inline bool 
-is_nan(float& value ) {
-    if (((*(uint32_t *) &value) & 0x7fffffff) > 0x7f800000) {
-      return true;
-    }
-    return false;
-}
-
 // Force already-denormal float value to zero
 static inline void 
-sanitize_denormal(float& value) {
-    if (is_nan(value)) {
+sanitize_denormal(double& value) {
+    if (!isnormal(value)) {
         value = 0.f;
     }
 }
 
 static inline int 
-sign(float x) {
+sign(double x) {
         return (x >= 0.f ? 1 : -1);
 }
 
-static inline float 
-from_dB(float gdb) {
+static inline double 
+from_dB(double gdb) {
         return (exp(gdb/20.f*log(10.f)));
 }
 
-static inline float
-to_dB(float g) {
+static inline double
+to_dB(double g) {
         return (20.f*log10(g));
 }
 
@@ -179,10 +170,10 @@ activate(LV2_Handle instance)
 }
 
 static void
-peq(float G0, float G, float GB, float w0, float Dw,
-        float *a0, float *a1, float *a2, float *b0, float *b1, float *b2, float *gn) {
+peq(double G0, double G, double GB, double w0, double Dw,
+        double *a0, double *a1, double *a2, double *b0, double *b1, double *b2, double *gn) {
 
-        float F,G00,F00,num,den,G1,G01,G11,F01,F11,W2,Dww,C,D,B,A;
+        double F,G00,F00,num,den,G1,G01,G11,F01,F11,W2,Dww,C,D,B,A;
         F = fabs(G*G - GB*GB);
         G00 = fabs(G*G - G0*G0);
         F00 = fabs(GB*GB - G0*G0);
@@ -215,15 +206,15 @@ peq(float G0, float G, float GB, float w0, float Dw,
         sanitize_denormal(*a1);
         sanitize_denormal(*a2);
         sanitize_denormal(*gn);
-        if (is_nan(*b0)) { *b0 = 1.f; }
+        if (!isnormal(*b0)) { *b0 = 1.f; }
 }
 
 static bool
-lowshelfeq(float G0, float G, float GB, float w0, float Dw, float q,
-		float B[], float A[]) {
- 	float alpha,b0,b1,b2,a0,a1,a2;
+lowshelfeq(double G0, double G, double GB, double w0, double Dw, double q,
+		double B[], double A[]) {
+ 	double alpha,b0,b1,b2,a0,a1,a2;
 	G = powf(10.f,G/20.f); 
-	float AA  = sqrt(G);
+	double AA  = sqrt(G);
 	
 	alpha = sin(w0)/2.f * sqrt( (AA + 1.f/AA)*(1.f/q - 1.f) + 2.f );
 	b0 =    AA*( (AA+1.f) - (AA-1.f)*cos(w0) + 2.f*sqrt(AA)*alpha );
@@ -244,11 +235,11 @@ lowshelfeq(float G0, float G, float GB, float w0, float Dw, float q,
 }
 
 static bool
-highshelfeq(float G0, float G, float GB, float w0, float Dw, float q,
-		float B[], float A[]) {
-        float alpha,b0,b1,b2,a0,a1,a2;
+highshelfeq(double G0, double G, double GB, double w0, double Dw, double q,
+		double B[], double A[]) {
+        double alpha,b0,b1,b2,a0,a1,a2;
         G = powf(10.f,G/20.f);
-        float AA  = sqrt(G);
+        double AA  = sqrt(G);
 
         alpha = sin(w0)/2.f * sqrt( (AA + 1.f/AA)*(1.f/q - 1.f) + 2.f );
         b0 =    AA*( (AA+1.f) + (AA-1.f)*cos(w0) + 2.f*sqrt(AA)*alpha );
@@ -276,45 +267,45 @@ run(LV2_Handle instance, uint32_t n_samples)
 	const float* const input  = zameq2->input;
 	float* const       output = zameq2->output;
 
-	const float        boostdb1 = *(zameq2->boostdb1);
-	const float        q1 = *(zameq2->q1);
-	const float        freq1 = *(zameq2->freq1);
+	const double        boostdb1 = *(zameq2->boostdb1);
+	const double        q1 = *(zameq2->q1);
+	const double        freq1 = *(zameq2->freq1);
 	
-	const float        boostdb2 = *(zameq2->boostdb2);
-	const float        q2 = *(zameq2->q2);
-	const float        freq2 = *(zameq2->freq2);
+	const double        boostdb2 = *(zameq2->boostdb2);
+	const double        q2 = *(zameq2->q2);
+	const double        freq2 = *(zameq2->freq2);
 	
-	const float        boostdbl = *(zameq2->boostdbl);
-	const float        slopedbl = *(zameq2->slopedbl);
-	const float        freql = *(zameq2->freql);
+	const double        boostdbl = *(zameq2->boostdbl);
+	const double        slopedbl = *(zameq2->slopedbl);
+	const double        freql = *(zameq2->freql);
 
-	const float        boostdbh = *(zameq2->boostdbh);
-	const float        slopedbh = *(zameq2->slopedbh);
-	const float        freqh = *(zameq2->freqh);
+	const double        boostdbh = *(zameq2->boostdbh);
+	const double        slopedbh = *(zameq2->slopedbh);
+	const double        freqh = *(zameq2->freqh);
 
-	float dcgain = 1.f;
+	double dcgain = 1.f;
 	
-	float boost1 = from_dB(boostdb1);
-  	float fc1 = freq1 / zameq2->srate;
-	float w01 = fc1*2.f*M_PI;
-	float bwgain1 = (boostdb1 == 0.f) ? 1.f : (boostdb1 < 0.f) ? boost1*from_dB(3.f) : boost1*from_dB(-3.f);
-	float bw1 = fc1 / q1;
+	double boost1 = from_dB(boostdb1);
+  	double fc1 = freq1 / zameq2->srate;
+	double w01 = fc1*2.f*M_PI;
+	double bwgain1 = (boostdb1 == 0.f) ? 1.f : (boostdb1 < 0.f) ? boost1*from_dB(3.f) : boost1*from_dB(-3.f);
+	double bw1 = fc1 / q1;
 
-	float boost2 = from_dB(boostdb2);
-  	float fc2 = freq2 / zameq2->srate;
-	float w02 = fc2*2.f*M_PI;
-	float bwgain2 = (boostdb2 == 0.f) ? 1.f : (boostdb2 < 0.f) ? boost2*from_dB(3.f) : boost2*from_dB(-3.f);
-	float bw2 = fc2 / q2;
+	double boost2 = from_dB(boostdb2);
+  	double fc2 = freq2 / zameq2->srate;
+	double w02 = fc2*2.f*M_PI;
+	double bwgain2 = (boostdb2 == 0.f) ? 1.f : (boostdb2 < 0.f) ? boost2*from_dB(3.f) : boost2*from_dB(-3.f);
+	double bw2 = fc2 / q2;
 
-	float boostl = from_dB(boostdbl);
-	float All = sqrt(boostl);
-	float bwl = 2.f*M_PI*freql/ zameq2->srate;
-	float bwgaindbl = to_dB(All);
+	double boostl = from_dB(boostdbl);
+	double All = sqrt(boostl);
+	double bwl = 2.f*M_PI*freql/ zameq2->srate;
+	double bwgaindbl = to_dB(All);
 	
-	float boosth = from_dB(boostdbh);
-	float Ahh = sqrt(boosth);
-	float bwh = 2.f*M_PI*freqh/ zameq2->srate;
-	float bwgaindbh = to_dB(Ahh);
+	double boosth = from_dB(boostdbh);
+	double Ahh = sqrt(boosth);
+	double bwh = 2.f*M_PI*freqh/ zameq2->srate;
+	double bwgaindbh = to_dB(Ahh);
 
 	peq(dcgain,boost1,bwgain1,w01,bw1,&zameq2->a0x,&zameq2->a1x,&zameq2->a2x,&zameq2->b0x,&zameq2->b1x,&zameq2->b2x,&zameq2->gainx);
 	peq(dcgain,boost2,bwgain2,w02,bw2,&zameq2->a0y,&zameq2->a1y,&zameq2->a2y,&zameq2->b0y,&zameq2->b1y,&zameq2->b2y,&zameq2->gainy);
@@ -322,8 +313,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 	highshelfeq(0.f,boostdbh,bwgaindbh,2.f*M_PI*freqh/zameq2->srate,bwh,slopedbh,zameq2->Bh,zameq2->Ah);
 
 	for (uint32_t pos = 0; pos < n_samples; pos++) {
-		float tmp,tmpl, tmph;
-		float in = input[pos];
+		double tmp,tmpl, tmph;
+		double in = input[pos];
 		sanitize_denormal(zameq2->x1);
 		sanitize_denormal(zameq2->x2);
 		sanitize_denormal(zameq2->y1);
