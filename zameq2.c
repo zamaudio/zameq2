@@ -7,26 +7,11 @@
 
 #define ZAMEQ2_URI "http://zamaudio.com/lv2/zameq2"
 
-typedef enum {
-	ZAMEQ2_INPUT  = 0,
-	ZAMEQ2_OUTPUT = 1,
+#include "zameq2.h"
 
-	ZAMEQ2_BOOSTDB1 = 2,
-	ZAMEQ2_Q1 = 3,
-	ZAMEQ2_FREQ1 = 4,
-	
-	ZAMEQ2_BOOSTDB2 = 5,
-	ZAMEQ2_Q2 = 6,
-	ZAMEQ2_FREQ2 = 7,
-	
-	ZAMEQ2_BOOSTDBL = 8,
-	ZAMEQ2_SLOPEDBL = 9,
-	ZAMEQ2_FREQL = 10,
-
-	ZAMEQ2_BOOSTDBH = 11,
-	ZAMEQ2_SLOPEDBH = 12,
-	ZAMEQ2_FREQH = 13
-} PortIndex;
+#ifndef M_PI
+#define M_PI 3.14159265
+#endif
 
 typedef struct {
 	float* input;
@@ -142,11 +127,12 @@ connect_port(LV2_Handle instance,
 }
 
 // Force already-denormal float value to zero
-static inline void 
-sanitize_denormal(double& value) {
+static inline double
+sanitize_denormal(double value) {
     if (!isnormal(value)) {
-        value = 0.f;
+        return (0.);
     }
+    return value;
 }
 
 static inline int 
@@ -200,16 +186,16 @@ peq(double G0, double G, double GB, double w0, double Dw,
         *a1 = -2.f*(1.f - W2) / (1.f + W2 + A);
         *a2 = (1 + W2 - A) / (1.f + W2 + A);
 
-        sanitize_denormal(*b1);
-        sanitize_denormal(*b2);
-        sanitize_denormal(*a0);
-        sanitize_denormal(*a1);
-        sanitize_denormal(*a2);
-        sanitize_denormal(*gn);
+        *b1 = sanitize_denormal(*b1);
+        *b2 = sanitize_denormal(*b2);
+        *a0 = sanitize_denormal(*a0);
+        *a1 = sanitize_denormal(*a1);
+        *a2 = sanitize_denormal(*a2);
+        *gn = sanitize_denormal(*gn);
         if (!isnormal(*b0)) { *b0 = 1.f; }
 }
 
-static bool
+static void
 lowshelfeq(double G0, double G, double GB, double w0, double Dw, double q,
 		double B[], double A[]) {
  	double alpha,b0,b1,b2,a0,a1,a2;
@@ -230,11 +216,9 @@ lowshelfeq(double G0, double G, double GB, double w0, double Dw, double q,
         A[0] = 1.f;
         A[1] = a1/a0;
         A[2] = a2/a0;
-
-	return true;
 }
 
-static bool
+static void
 highshelfeq(double G0, double G, double GB, double w0, double Dw, double q,
 		double B[], double A[]) {
         double alpha,b0,b1,b2,a0,a1,a2;
@@ -255,8 +239,6 @@ highshelfeq(double G0, double G, double GB, double w0, double Dw, double q,
         A[0] = 1.f;
         A[1] = a1/a0;
         A[2] = a2/a0;
-
-        return true;
 }
 
 static void
@@ -317,23 +299,23 @@ run(LV2_Handle instance, uint32_t n_samples)
 	for (uint32_t pos = 0; pos < n_samples; pos++) {
 		double tmp,tmpl, tmph;
 		double in = input[pos];
-		sanitize_denormal(zameq2->x1);
-		sanitize_denormal(zameq2->x2);
-		sanitize_denormal(zameq2->y1);
-		sanitize_denormal(zameq2->y2);
-		sanitize_denormal(zameq2->x1a);
-		sanitize_denormal(zameq2->x2a);
-		sanitize_denormal(zameq2->y1a);
-		sanitize_denormal(zameq2->y2a);
-		sanitize_denormal(zameq2->zln1);
-		sanitize_denormal(zameq2->zln2);
-		sanitize_denormal(zameq2->zld1);
-		sanitize_denormal(zameq2->zld2);
-		sanitize_denormal(zameq2->zhn1);
-		sanitize_denormal(zameq2->zhn2);
-		sanitize_denormal(zameq2->zhd1);
-		sanitize_denormal(zameq2->zhd2);
-		sanitize_denormal(in);
+		zameq2->x1 = sanitize_denormal(zameq2->x1);
+		zameq2->x2 = sanitize_denormal(zameq2->x2);
+		zameq2->y1 = sanitize_denormal(zameq2->y1);
+		zameq2->y2 = sanitize_denormal(zameq2->y2);
+		zameq2->x1a = sanitize_denormal(zameq2->x1a);
+		zameq2->x2a = sanitize_denormal(zameq2->x2a);
+		zameq2->y1a = sanitize_denormal(zameq2->y1a);
+		zameq2->y2a = sanitize_denormal(zameq2->y2a);
+		zameq2->zln1 = sanitize_denormal(zameq2->zln1);
+		zameq2->zln2 = sanitize_denormal(zameq2->zln2);
+		zameq2->zld1 = sanitize_denormal(zameq2->zld1);
+		zameq2->zld2 = sanitize_denormal(zameq2->zld2);
+		zameq2->zhn1 = sanitize_denormal(zameq2->zhn1);
+		zameq2->zhn2 = sanitize_denormal(zameq2->zhn2);
+		zameq2->zhd1 = sanitize_denormal(zameq2->zhd1);
+		zameq2->zhd2 = sanitize_denormal(zameq2->zhd2);
+		in = sanitize_denormal(in);
 
 		//lowshelf
 		tmpl = in * zameq2->Bl[0] + 
@@ -405,10 +387,5 @@ LV2_SYMBOL_EXPORT
 const LV2_Descriptor*
 lv2_descriptor(uint32_t index)
 {
-	switch (index) {
-	case 0:
-		return &descriptor;
-	default:
-		return NULL;
-	}
+	return &descriptor;
 }

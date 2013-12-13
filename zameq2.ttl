@@ -7,13 +7,19 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
 @prefix param: <http://lv2plug.in/ns/ext/parameters#>.
 @prefix pg: <http://lv2plug.in/ns/ext/port-groups#>.
+@prefix ui:   <http://lv2plug.in/ns/extensions/ui#>.
+
+<http://zamaudio.com/lv2/zameq2#ui>
+  a ui:GtkUI;
+  ui:binary <zameq2UI_gtk.so>.
 
 <http://zamaudio.com/lv2/zameq2>
   a lv2:Plugin;
   a lv2:FilterPlugin;
   a lv2:EQPlugin;
-
+  
   lv2:binary <zameq2.so>;
+  ui:ui <http://zamaudio.com/lv2/zameq2#ui>;
   doap:name "ZamEQ2";
   doap:maintainer [
      foaf:name "Damien Zammit";

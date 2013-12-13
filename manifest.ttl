@@ -1,6 +1,12 @@
 @prefix lv2:  <http://lv2plug.in/ns/lv2core#>.
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
+@prefix ui:   <http://lv2plug.in/ns/extensions/ui#>.
 
 <http://zamaudio.com/lv2/zameq2>
   a lv2:Plugin;
+  rdfs:seeAlso <zameq2.ttl>.
+
+<http://zamaudio.com/lv2/zameq2#ui>
+  a ui:GtkUI;
+  ui:binary <zameq2UI_gtk.so> ;
   rdfs:seeAlso <zameq2.ttl>.
