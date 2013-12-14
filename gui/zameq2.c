@@ -10,8 +10,9 @@
 #include "lv2/lv2plug.in/ns/extensions/ui/ui.h"
 
 /* widget, window size */
-#define DAWIDTH  (517.)
-#define DAHEIGHT (310.)
+#define DAWIDTH  (620.)
+#define DAHEIGHT (380.)
+#define EQPOINTS 100
 
 struct MyGimpImage {
         unsigned int   width;
@@ -34,6 +35,8 @@ typedef struct {
 	RobTkSpin *knob_freq[4];
 	RobTkSep  *sep[3];
 
+	RobTkXYp  *xyp;
+
 	RobTkLbl  *lbl_ingain;
 	RobTkSpin *knob_ingain;
 	RobTkLbl  *lbl_outgain;
@@ -41,6 +44,9 @@ typedef struct {
 	
 	cairo_surface_t *frontface;
 	cairo_surface_t *eqcurve;
+	
+	float eqx[EQPOINTS];
+	float eqy[EQPOINTS];
 
 	bool disable_signals;
 
@@ -79,7 +85,7 @@ static void img2surf (struct MyGimpImage const * img, cairo_surface_t **s, unsig
 //#include "gui/img/eq2.c"
 
 static void render_frontface(ZamEQ2_UI* ui) {
-
+/*
 	cairo_surface_t *bg;
 	unsigned char * img_tmp;
 	//img2surf((struct MyGimpImage const *) &img_eq2, &bg, &img_tmp);
@@ -98,9 +104,35 @@ static void render_frontface(ZamEQ2_UI* ui) {
 
 	cairo_destroy(cr);
 	free(img_tmp);
+*/
+
+	cairo_t *cr;
+	robtk_xydraw_set_surface(ui->xyp, NULL);
+	ui->eqcurve = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, DAWIDTH, DAWIDTH);
+	cr = cairo_create (ui->eqcurve);
+
+	CairoSetSouerceRGBA(c_blk);
+	cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
+	cairo_rectangle (cr, 0, 0, DAWIDTH, DAHEIGHT);
+	cairo_fill (cr);
+
+	cairo_save(cr);
+	rounded_rectangle (cr, 10, 10, DAWIDTH - 20, DAHEIGHT - 20, 10);
+	CairoSetSouerceRGBA(c_blk);
+	cairo_fill_preserve(cr);
+	cairo_clip(cr);
+	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+	
+	robtk_xydraw_set_surface(ui->xyp, ui->eqcurve);
 }
 
-
+static void calceqcurve(float val[], float x[], float y[])
+{
+	for (uint32_t i = 0; i < EQPOINTS; ++i) {
+		x[i] = 0.0;
+		y[i] = 0.0;
+	}
+}
 
 static bool expose_event(RobWidget* handle, cairo_t* cr, cairo_rectangle_t *ev)
 {
@@ -116,6 +148,13 @@ static bool expose_event(RobWidget* handle, cairo_t* cr, cairo_rectangle_t *ev)
 
 	return TRUE;
 }
+
+static void xy_clip_fn(cairo_t *cr, void *data)
+{
+	rounded_rectangle(cr, 10, 10, DAWIDTH - 20, DAHEIGHT - 20, 10);
+	cairo_clip(cr);
+}
+
 
 static bool cb_disp_changed (RobWidget* handle, void *data) {
 	ZamEQ2_UI* ui = (ZamEQ2_UI*) (data);
@@ -137,36 +176,36 @@ static bool cb_disp_changed (RobWidget* handle, void *data) {
 
 static bool cb_set_knobs (RobWidget* handle, void *data) {
 	ZamEQ2_UI* ui = (ZamEQ2_UI*) (data);
-	float val;
+	float val[12];
 	if (ui->disable_signals) return TRUE;
 	
-	//cb_disp_changed(handle, ui);
-	
-	val = robtk_spin_get_value(ui->knob_freq[0]);
-	ui->write(ui->controller, ZAMEQ2_FREQ1, sizeof(float), 0, (const void*) &val);
-	val = robtk_spin_get_value(ui->knob_freq[1]);
-	ui->write(ui->controller, ZAMEQ2_FREQ2, sizeof(float), 0, (const void*) &val);
-	val = robtk_spin_get_value(ui->knob_freq[2]);
-	ui->write(ui->controller, ZAMEQ2_FREQL, sizeof(float), 0, (const void*) &val);
-	val = robtk_spin_get_value(ui->knob_freq[3]);
-	ui->write(ui->controller, ZAMEQ2_FREQH, sizeof(float), 0, (const void*) &val);
-	val = robtk_spin_get_value(ui->knob_bw[0]);
-	ui->write(ui->controller, ZAMEQ2_Q1, sizeof(float), 0, (const void*) &val);
-	val = robtk_spin_get_value(ui->knob_bw[1]);
-	ui->write(ui->controller, ZAMEQ2_Q2, sizeof(float), 0, (const void*) &val);
-	val = robtk_spin_get_value(ui->knob_bw[2]);
-	ui->write(ui->controller, ZAMEQ2_SLOPEDBL, sizeof(float), 0, (const void*) &val);
-	val = robtk_spin_get_value(ui->knob_bw[3]);
-	ui->write(ui->controller, ZAMEQ2_SLOPEDBH, sizeof(float), 0, (const void*) &val);
-	val = robtk_spin_get_value(ui->knob_gain[0]);
-	ui->write(ui->controller, ZAMEQ2_BOOSTDB1, sizeof(float), 0, (const void*) &val);
-	val = robtk_spin_get_value(ui->knob_gain[1]);
-	ui->write(ui->controller, ZAMEQ2_BOOSTDB2, sizeof(float), 0, (const void*) &val);
-	val = robtk_spin_get_value(ui->knob_gain[2]);
-	ui->write(ui->controller, ZAMEQ2_BOOSTDBL, sizeof(float), 0, (const void*) &val);
-	val = robtk_spin_get_value(ui->knob_gain[3]);
-	ui->write(ui->controller, ZAMEQ2_BOOSTDBH, sizeof(float), 0, (const void*) &val);
-        
+	val[0] = robtk_spin_get_value(ui->knob_freq[0]);
+	ui->write(ui->controller, ZAMEQ2_FREQ1, sizeof(float), 0, (const void*) &val[0]);
+	val[1] = robtk_spin_get_value(ui->knob_freq[1]);
+	ui->write(ui->controller, ZAMEQ2_FREQ2, sizeof(float), 0, (const void*) &val[1]);
+	val[2] = robtk_spin_get_value(ui->knob_freq[2]);
+	ui->write(ui->controller, ZAMEQ2_FREQL, sizeof(float), 0, (const void*) &val[2]);
+	val[3] = robtk_spin_get_value(ui->knob_freq[3]);
+	ui->write(ui->controller, ZAMEQ2_FREQH, sizeof(float), 0, (const void*) &val[3]);
+	val[4] = robtk_spin_get_value(ui->knob_bw[0]);
+	ui->write(ui->controller, ZAMEQ2_Q1, sizeof(float), 0, (const void*) &val[4]);
+	val[5] = robtk_spin_get_value(ui->knob_bw[1]);
+	ui->write(ui->controller, ZAMEQ2_Q2, sizeof(float), 0, (const void*) &val[5]);
+	val[6] = robtk_spin_get_value(ui->knob_bw[2]);
+	ui->write(ui->controller, ZAMEQ2_SLOPEDBL, sizeof(float), 0, (const void*) &val[6]);
+	val[7] = robtk_spin_get_value(ui->knob_bw[3]);
+	ui->write(ui->controller, ZAMEQ2_SLOPEDBH, sizeof(float), 0, (const void*) &val[7]);
+	val[8] = robtk_spin_get_value(ui->knob_gain[0]);
+	ui->write(ui->controller, ZAMEQ2_BOOSTDB1, sizeof(float), 0, (const void*) &val[8]);
+	val[9] = robtk_spin_get_value(ui->knob_gain[1]);
+	ui->write(ui->controller, ZAMEQ2_BOOSTDB2, sizeof(float), 0, (const void*) &val[9]);
+	val[10] = robtk_spin_get_value(ui->knob_gain[2]);
+	ui->write(ui->controller, ZAMEQ2_BOOSTDBL, sizeof(float), 0, (const void*) &val[10]);
+	val[11] = robtk_spin_get_value(ui->knob_gain[3]);
+	ui->write(ui->controller, ZAMEQ2_BOOSTDBH, sizeof(float), 0, (const void*) &val[11]);
+
+	calceqcurve(val, ui->eqx, ui->eqy);
+
 	return TRUE;
 }
 
@@ -222,6 +261,16 @@ static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 	ui->lbl_bw[1] = robtk_lbl_new("              Bw");
 	ui->lbl_bw[2] = robtk_lbl_new("              Bw");
 	ui->lbl_bw[3] = robtk_lbl_new("              Bw");
+
+	ui->xyp = robtk_xydraw_new(DAWIDTH, DAHEIGHT);
+	//ui->xyp->rw->position_set = plot_position_right;
+	robtk_xydraw_set_alignment(ui->xyp, 0, 0);
+	robtk_xydraw_set_linewidth(ui->xyp, 1.5);
+	robtk_xydraw_set_drawing_mode(ui->xyp, RobTkXY_ymax_zline);
+	robtk_xydraw_set_mapping(ui->xyp, 1./EQPOINTS, 0, 1./EQPOINTS, 1.);
+	robtk_xydraw_set_area(ui->xyp, 10, 10, DAWIDTH - 10, DAHEIGHT -10);
+	robtk_xydraw_set_clip_callback(ui->xyp, xy_clip_fn, ui);
+	robtk_xydraw_set_color(ui->xyp, 1.0, .0, .2, 1.0);
 
 	int row = 0;
 	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_bw[2]),
@@ -308,9 +357,9 @@ static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 	SPIN_DFTNVAL(ui->knob_gain[1], 0)
 	SPIN_DFTNVAL(ui->knob_gain[2], 0)
 	SPIN_DFTNVAL(ui->knob_gain[3], 0)
-	SPIN_DFTNVAL(ui->knob_freq[0], 250)
+	SPIN_DFTNVAL(ui->knob_freq[0], 400)
 	SPIN_DFTNVAL(ui->knob_freq[1], 1500)
-	SPIN_DFTNVAL(ui->knob_freq[2], 100)
+	SPIN_DFTNVAL(ui->knob_freq[2], 250)
 	SPIN_DFTNVAL(ui->knob_freq[3], 9000)
 	SPIN_DFTNVAL(ui->knob_bw[0], 1)
 	SPIN_DFTNVAL(ui->knob_bw[1], 1)
@@ -330,6 +379,7 @@ static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 	robtk_spin_set_callback(ui->knob_gain[2], cb_set_knobs, ui);
 	robtk_spin_set_callback(ui->knob_gain[3], cb_set_knobs, ui);
 
+	rob_hbox_child_pack(ui->hbox, robtk_xydraw_widget(ui->xyp), FALSE, FALSE);
         rob_hbox_child_pack(ui->hbox, ui->ctable, FALSE, FALSE);
 	
 	return ui->hbox;
@@ -364,7 +414,7 @@ instantiate(
 	ui->controller = controller;
 
 	*widget = toplevel(ui, ui_toplevel);
-	//render_frontface(ui);
+	render_frontface(ui);
 	return ui;
 }
 
@@ -380,6 +430,10 @@ cleanup(LV2UI_Handle handle)
 	ZamEQ2_UI* ui = (ZamEQ2_UI*)handle;
 	ui_disable(ui);
 
+	robtk_xydraw_set_surface(ui->xyp, NULL);
+	cairo_surface_destroy (ui->eqcurve);
+	robtk_xydraw_destroy(ui->xyp);
+	
 	for (uint32_t i = 0; i < 4; ++i) {
 		robtk_lbl_destroy(ui->lbl_gain[i]);
 		robtk_lbl_destroy(ui->lbl_bw[i]);
@@ -395,7 +449,6 @@ cleanup(LV2UI_Handle handle)
 	//robtk_lbl_destroy(ui->lbl_outgain);
 
 	rob_box_destroy(ui->hbox);
-
 	cairo_surface_destroy(ui->frontface);
 
 	free(ui);
@@ -409,6 +462,8 @@ port_event(LV2UI_Handle handle,
 		const void*  buffer)
 {
 	ZamEQ2_UI* ui = (ZamEQ2_UI*)handle;
+	
+	robtk_xydraw_set_points(ui->xyp, EQPOINTS, ui->eqx, ui->eqy);
 
 	if (format != 0) return;
 	const float v = *(float *)buffer;
