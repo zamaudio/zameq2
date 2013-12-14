@@ -32,6 +32,7 @@ typedef struct {
 	RobTkSpin *knob_gain[4];
 	RobTkLbl  *lbl_freq[4];
 	RobTkSpin *knob_freq[4];
+	RobTkSep  *sep[3];
 
 	RobTkLbl  *lbl_ingain;
 	RobTkSpin *knob_ingain;
@@ -75,13 +76,13 @@ static void img2surf (struct MyGimpImage const * img, cairo_surface_t **s, unsig
         cairo_surface_mark_dirty (*s);
 }
 
-#include "gui/img/eq2.c"
+//#include "gui/img/eq2.c"
 
 static void render_frontface(ZamEQ2_UI* ui) {
 
 	cairo_surface_t *bg;
 	unsigned char * img_tmp;
-	img2surf((struct MyGimpImage const *) &img_eq2, &bg, &img_tmp);
+	//img2surf((struct MyGimpImage const *) &img_eq2, &bg, &img_tmp);
 	cairo_t *cr;
 	if (!ui->frontface) {
 		ui->frontface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, DAWIDTH, DAHEIGHT);
@@ -92,6 +93,7 @@ static void render_frontface(ZamEQ2_UI* ui) {
 	cairo_set_source_surface(cr, bg, 0, 0);
 	cairo_rectangle (cr, 0, 0, DAWIDTH, DAHEIGHT);
 	cairo_fill(cr);
+	cairo_paint(cr);
 	cairo_restore(cr);
 
 	cairo_destroy(cr);
@@ -125,7 +127,7 @@ static bool cb_disp_changed (RobWidget* handle, void *data) {
 		robwidget_show(ui->knob_gain[i]->rw, true);
 		robwidget_show(ui->lbl_gain[i]->rw, true);
 	}
-	robwidget_show(ui->knob_ingain->rw, true);
+	//robwidget_show(ui->knob_ingain->rw, true);
 	robwidget_show(ui->knob_outgain->rw, true);
 	robwidget_show(ui->lbl_ingain->rw, true);
 	robwidget_show(ui->lbl_outgain->rw, true);
@@ -138,7 +140,7 @@ static bool cb_set_knobs (RobWidget* handle, void *data) {
 	float val;
 	if (ui->disable_signals) return TRUE;
 	
-	cb_disp_changed(handle, ui);
+	//cb_disp_changed(handle, ui);
 	
 	val = robtk_spin_get_value(ui->knob_freq[0]);
 	ui->write(ui->controller, ZAMEQ2_FREQ1, sizeof(float), 0, (const void*) &val);
@@ -185,75 +187,118 @@ size_request(RobWidget* handle, int *w, int *h) {
 static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 {
 
-        ui->hbox = rob_hbox_new(FALSE, 2);
+        ui->frontface = NULL;
+	ui->hbox = rob_hbox_new(FALSE, 2);
         robwidget_make_toplevel(ui->hbox, top);
         ROBWIDGET_SETNAME(ui->hbox, "ZamEQ2");
 
-        ui->ctable = rob_table_new(/*rows*/5, /*cols*/ 5, FALSE);
+        ui->ctable = rob_table_new(/*rows*/15, /*cols*/ 3, FALSE);
+	ui->sep[0] = robtk_sep_new(TRUE);
+	ui->sep[1] = robtk_sep_new(TRUE);
+	ui->sep[2] = robtk_sep_new(TRUE);
 
 	ui->knob_gain[0]   = robtk_spin_new(-50, 20, .1);
 	ui->knob_gain[1]   = robtk_spin_new(-50, 20, .1);
 	ui->knob_gain[2]   = robtk_spin_new(-50, 20, .1);
 	ui->knob_gain[3]   = robtk_spin_new(-50, 20, .1);
-	ui->knob_freq[0]   = robtk_spin_new(10, 20000, .5); // TODO log-map
-	ui->knob_freq[1]   = robtk_spin_new(10, 20000, .5); // TODO log-map
-	ui->knob_freq[2]   = robtk_spin_new(10, 20000, .5); // TODO log-map
-	ui->knob_freq[3]   = robtk_spin_new(10, 20000, .5); // TODO log-map
+	ui->knob_freq[0]   = robtk_spin_new(10, 20000, 1); // TODO log-map
+	ui->knob_freq[1]   = robtk_spin_new(10, 20000, 1); // TODO log-map
+	ui->knob_freq[2]   = robtk_spin_new(10, 20000, 1); // TODO log-map
+	ui->knob_freq[3]   = robtk_spin_new(10, 20000, 1); // TODO log-map
 	ui->knob_bw[0]   = robtk_spin_new(0.1, 6, .1);
 	ui->knob_bw[1]   = robtk_spin_new(0.1, 6, .1);
-	ui->knob_bw[2]   = robtk_spin_new(0.1, 2, .1);
-	ui->knob_bw[3]   = robtk_spin_new(0.1, 2, .1);
+	ui->knob_bw[2]   = robtk_spin_new(0.1, 1.1, .1);
+	ui->knob_bw[3]   = robtk_spin_new(0.1, 1.1, .1);
 
-	ui->lbl_gain[0] = robtk_lbl_new("Boost/Cut (dB)");
-	ui->lbl_gain[1] = robtk_lbl_new("Boost/Cut (dB)");
-	ui->lbl_gain[2] = robtk_lbl_new("Boost/Cut (dB)");
-	ui->lbl_gain[3] = robtk_lbl_new("Boost/Cut (dB)");
-	ui->lbl_freq[0] = robtk_lbl_new("Freq (Hz)");
-	ui->lbl_freq[1] = robtk_lbl_new("Freq (Hz)");
-	ui->lbl_freq[2] = robtk_lbl_new("Freq (Hz)");
-	ui->lbl_freq[3] = robtk_lbl_new("Freq (Hz)");
-	ui->lbl_bw[0] = robtk_lbl_new("Bandwidth (Oct)");
-	ui->lbl_bw[1] = robtk_lbl_new("Bandwidth (Oct)");
-	ui->lbl_bw[2] = robtk_lbl_new("Steepness");
-	ui->lbl_bw[3] = robtk_lbl_new("Steepness");
+	ui->lbl_gain[0] = robtk_lbl_new("              dB");
+	ui->lbl_gain[1] = robtk_lbl_new("              dB");
+	ui->lbl_gain[2] = robtk_lbl_new("              dB");
+	ui->lbl_gain[3] = robtk_lbl_new("              dB");
+	ui->lbl_freq[0] = robtk_lbl_new("LMF");
+	ui->lbl_freq[1] = robtk_lbl_new("MF");
+	ui->lbl_freq[2] = robtk_lbl_new("LF");
+	ui->lbl_freq[3] = robtk_lbl_new("HF");
+	ui->lbl_bw[0] = robtk_lbl_new("              Bw");
+	ui->lbl_bw[1] = robtk_lbl_new("              Bw");
+	ui->lbl_bw[2] = robtk_lbl_new("              Bw");
+	ui->lbl_bw[3] = robtk_lbl_new("              Bw");
 
-        robtk_lbl_set_alignment(ui->lbl_freq[0], 0.5, 0.5);
-        robtk_lbl_set_alignment(ui->lbl_freq[1], 0.5, 0.5);
-        robtk_lbl_set_alignment(ui->lbl_freq[2], 0.5, 0.5);
-        robtk_lbl_set_alignment(ui->lbl_freq[3], 0.5, 0.5);
-        robtk_lbl_set_alignment(ui->lbl_bw[0], 0.5, 0.5);
-        robtk_lbl_set_alignment(ui->lbl_bw[1], 0.5, 0.5);
-        robtk_lbl_set_alignment(ui->lbl_bw[2], 0.5, 0.5);
-        robtk_lbl_set_alignment(ui->lbl_bw[3], 0.5, 0.5);
-        robtk_lbl_set_alignment(ui->lbl_gain[0], 0.5, 0.5);
-        robtk_lbl_set_alignment(ui->lbl_gain[1], 0.5, 0.5);
-        robtk_lbl_set_alignment(ui->lbl_gain[2], 0.5, 0.5);
-        robtk_lbl_set_alignment(ui->lbl_gain[3], 0.5, 0.5);
+	int row = 0;
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_bw[2]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_bw[2]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_freq[2]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_freq[2]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_gain[2]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_gain[2]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
 
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_freq[0]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_freq[1]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_freq[2]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_freq[3]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_gain[0]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_gain[1]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_gain[2]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_gain[3]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_bw[0]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_bw[1]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_bw[2]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
-        rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_bw[3]),
-                        1, 2, 0, 1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_sep_widget(ui->sep[0]),
+		0, 2, row, row+1, 2, 2, RTK_EXANDF, RTK_SHRINK);
+	row++;
+
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_bw[0]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_bw[0]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_freq[0]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_freq[0]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_gain[0]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_gain[0]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
+
+	rob_table_attach(ui->ctable, robtk_sep_widget(ui->sep[1]),
+		0, 2, row, row+1, 2, 2, RTK_EXANDF, RTK_SHRINK);
+	row++;
+
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_bw[1]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_bw[1]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_freq[1]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_freq[1]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_gain[1]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_gain[1]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
+
+	rob_table_attach(ui->ctable, robtk_sep_widget(ui->sep[2]),
+		0, 2, row, row+1, 2, 2, RTK_EXANDF, RTK_SHRINK);
+	row++;
+
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_bw[3]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_bw[3]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_freq[3]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_freq[3]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
+	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_gain[3]),
+		0, 1, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_gain[3]),
+		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
+	row++;
 
 #define SPIN_DFTNVAL(SPB, VAL) \
 	robtk_spin_set_default(SPB, VAL); \
@@ -263,11 +308,11 @@ static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 	SPIN_DFTNVAL(ui->knob_gain[1], 0)
 	SPIN_DFTNVAL(ui->knob_gain[2], 0)
 	SPIN_DFTNVAL(ui->knob_gain[3], 0)
-	SPIN_DFTNVAL(ui->knob_freq[0], 150)
-	SPIN_DFTNVAL(ui->knob_freq[1], 1000)
+	SPIN_DFTNVAL(ui->knob_freq[0], 250)
+	SPIN_DFTNVAL(ui->knob_freq[1], 1500)
 	SPIN_DFTNVAL(ui->knob_freq[2], 100)
 	SPIN_DFTNVAL(ui->knob_freq[3], 9000)
-	SPIN_DFTNVAL(ui->knob_bw[0],  1)
+	SPIN_DFTNVAL(ui->knob_bw[0], 1)
 	SPIN_DFTNVAL(ui->knob_bw[1], 1)
 	SPIN_DFTNVAL(ui->knob_bw[2], 1)
 	SPIN_DFTNVAL(ui->knob_bw[3], 1)
@@ -319,7 +364,7 @@ instantiate(
 	ui->controller = controller;
 
 	*widget = toplevel(ui, ui_toplevel);
-	render_frontface(ui);
+	//render_frontface(ui);
 	return ui;
 }
 
@@ -344,10 +389,10 @@ cleanup(LV2UI_Handle handle)
 		robtk_spin_destroy(ui->knob_freq[i]);
 	}
 
-	robtk_spin_destroy(ui->knob_ingain);
-	robtk_lbl_destroy(ui->lbl_ingain);
-	robtk_spin_destroy(ui->knob_outgain);
-	robtk_lbl_destroy(ui->lbl_outgain);
+	//robtk_spin_destroy(ui->knob_ingain);
+	//robtk_lbl_destroy(ui->lbl_ingain);
+	//robtk_spin_destroy(ui->knob_outgain);
+	//robtk_lbl_destroy(ui->lbl_outgain);
 
 	rob_box_destroy(ui->hbox);
 

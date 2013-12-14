@@ -9,7 +9,7 @@
 @prefix pg: <http://lv2plug.in/ns/ext/port-groups#>.
 @prefix ui:   <http://lv2plug.in/ns/extensions/ui#>.
 
-<http://zamaudio.com/lv2/zameq2#ui>
+<http://zamaudio.com/lv2/zameq2#ui_gtk>
   a ui:GtkUI;
   ui:binary <zameq2UI_gtk.so>.
 
@@ -19,7 +19,7 @@
   a lv2:EQPlugin;
   
   lv2:binary <zameq2.so>;
-  ui:ui <http://zamaudio.com/lv2/zameq2#ui>;
+  ui:ui <http://zamaudio.com/lv2/zameq2#ui_gtk>;
   doap:name "ZamEQ2";
   doap:maintainer [
      foaf:name "Damien Zammit";
