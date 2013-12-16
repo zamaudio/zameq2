@@ -9,16 +9,13 @@
 
 #include "lv2/lv2plug.in/ns/extensions/ui/ui.h"
 
-/* widget, window size */
-#define DAWIDTH  (620.)
-#define DAHEIGHT (380.)
 #define EQPOINTS 100
 
 #define LOGO_W (160.)
 #define LOGO_H (30.)
 
-#define PLOT_W (400.)
-#define PLOT_H (300.)
+#define PLOT_W (550.)
+#define PLOT_H (380.)
 
 typedef struct {
 	LV2UI_Write_Function write;
@@ -56,33 +53,33 @@ typedef struct {
 #include "gui/img/logo.c"
 
 static void render_frontface(ZamEQ2_UI* ui) {
-/*
+
 	cairo_t *cr;
 	robtk_xydraw_set_surface(ui->xyp, NULL);
-	ui->eqcurve = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, DAWIDTH, DAWIDTH);
+	ui->eqcurve = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, PLOT_W, PLOT_H);
 	cr = cairo_create (ui->eqcurve);
 
 	CairoSetSouerceRGBA(c_blk);
 	cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
-	cairo_rectangle (cr, 0, 0, DAWIDTH, DAHEIGHT);
+	cairo_rectangle (cr, 0, 0, PLOT_W, PLOT_H);
 	cairo_fill (cr);
 
 	cairo_save(cr);
-	rounded_rectangle (cr, 10, 10, DAWIDTH - 20, DAHEIGHT - 20, 10);
+	rounded_rectangle (cr, 10, 10, PLOT_W - 20, PLOT_H - 20, 10);
 	CairoSetSouerceRGBA(c_blk);
 	cairo_fill_preserve(cr);
 	cairo_clip(cr);
 	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 	
 	robtk_xydraw_set_surface(ui->xyp, ui->eqcurve);
-*/
+
 }
 
 static void calceqcurve(float val[], float x[], float y[])
 {
 	for (uint32_t i = 0; i < EQPOINTS; ++i) {
-		x[i] = i/(float) EQPOINTS;
-		y[i] = i/(float) EQPOINTS;
+		x[i] = 0.1;
+		y[i] = -0.1;
 	}
 }
 
@@ -107,27 +104,11 @@ static void expose_plot(cairo_t* cr, void *smth)
 
 static void xy_clip_fn(cairo_t *cr, void *data)
 {
-	rounded_rectangle(cr, 0, 0, PLOT_W, PLOT_H, 0);
-	cairo_clip(cr);
-}
-
-
-static bool cb_disp_changed (RobWidget* handle, void *data) {
 	ZamEQ2_UI* ui = (ZamEQ2_UI*) (data);
-	for (uint32_t i = 0; i < 4; ++i) {
-		robwidget_show(ui->knob_freq[i]->rw, true);
-		robwidget_show(ui->lbl_freq[i]->rw, true);
-		robwidget_show(ui->knob_bw[i]->rw, true);
-		robwidget_show(ui->lbl_bw[i]->rw, true);
-		robwidget_show(ui->knob_gain[i]->rw, true);
-		robwidget_show(ui->lbl_gain[i]->rw, true);
-	}
-	//robwidget_show(ui->knob_ingain->rw, true);
-	robwidget_show(ui->knob_outgain->rw, true);
-	robwidget_show(ui->lbl_ingain->rw, true);
-	robwidget_show(ui->lbl_outgain->rw, true);
-	
-	return TRUE;
+	rounded_rectangle(cr, 10, 10, PLOT_W-20, PLOT_H-20, 10);
+	cairo_clip(cr);
+	cairo_set_source_surface(cr, ui->eqcurve, 0, 0);
+	cairo_paint(cr);
 }
 
 static bool cb_set_knobs (RobWidget* handle, void *data) {
@@ -216,10 +197,10 @@ static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 
 	ui->xyp = robtk_xydraw_new(PLOT_W, PLOT_H);
 	robtk_xydraw_set_alignment(ui->xyp, 0, 0);
-	robtk_xydraw_set_linewidth(ui->xyp, 1.5);
-	robtk_xydraw_set_drawing_mode(ui->xyp, RobTkXY_yraw_line);
-	robtk_xydraw_set_mapping(ui->xyp, 1./PLOT_W, 0., 1./PLOT_H, 0.);
-	robtk_xydraw_set_area(ui->xyp, 0, 0, PLOT_W, PLOT_H);
+	robtk_xydraw_set_linewidth(ui->xyp, 2.5);
+	robtk_xydraw_set_drawing_mode(ui->xyp, RobTkXY_yraw_zline);
+	robtk_xydraw_set_mapping(ui->xyp, 1./20000., 0., 1./70., 1.0);
+	robtk_xydraw_set_area(ui->xyp, 10, 10, PLOT_W-20, PLOT_H-20);
 	robtk_xydraw_set_clip_callback(ui->xyp, xy_clip_fn, ui);
 	robtk_xydraw_set_color(ui->xyp, 1.0, .0, .2, 1.0);
 
