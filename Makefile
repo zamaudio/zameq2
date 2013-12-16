@@ -143,13 +143,13 @@ $(BUILDDIR)$(LV2NAME)$(LIB_EXT): zameq2.c
 
 -include $(RW)robtk.mk
 
-$(BUILDDIR)$(LV2GTK)$(LIB_EXT): gui/zameq2.c gui/img/eq2.c
+$(BUILDDIR)$(LV2GTK)$(LIB_EXT): gui/zameq2.c gui/img/logo.c
 #	@mkdir -p $(BUILDDIR)
 #	$(CC) $(CPPFLAGS) $(CFLAGS) $(LV2CFLAGS) -std=c99 \
 #          -o $(BUILDDIR)$(LV2GTK)$(LIB_EXT) gui/zameq2.c gui/img/eq2.c \
 #          -shared $(LV2LDFLAGS) $(LDFLAGS) $(LOADLIBES)
 
-$(BUILDDIR)$(LV2GUI)$(LIB_EXT): gui/zameq2.c gui/img/eq2.c
+$(BUILDDIR)$(LV2GUI)$(LIB_EXT): gui/zameq2.c gui/img/logo.c
 #@mkdir -p $(BUILDDIR)
 #	$(CC) $(CPPFLAGS) $(CFLAGS) $(LV2CFLAGS) -std=c99 \
 #         -o $(BUILDDIR)$(LV2GUI)$(LIB_EXT) gui/eq2.c gui/img/eq2.c \

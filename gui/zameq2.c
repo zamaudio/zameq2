@@ -17,6 +17,9 @@
 #define LOGO_W (160.)
 #define LOGO_H (30.)
 
+#define PLOT_W (400.)
+#define PLOT_H (300.)
+
 typedef struct {
 	LV2UI_Write_Function write;
 	LV2UI_Controller controller;
@@ -31,6 +34,7 @@ typedef struct {
 	RobTkSpin *knob_freq[4];
 	RobTkSep  *sep[3];
 
+	//RobTkDarea *darea;
 	RobTkXYp  *xyp;
 	RobTkImg  *logo;
 
@@ -52,6 +56,7 @@ typedef struct {
 #include "gui/img/logo.c"
 
 static void render_frontface(ZamEQ2_UI* ui) {
+/*
 	cairo_t *cr;
 	robtk_xydraw_set_surface(ui->xyp, NULL);
 	ui->eqcurve = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, DAWIDTH, DAWIDTH);
@@ -70,6 +75,7 @@ static void render_frontface(ZamEQ2_UI* ui) {
 	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 	
 	robtk_xydraw_set_surface(ui->xyp, ui->eqcurve);
+*/
 }
 
 static void calceqcurve(float val[], float x[], float y[])
@@ -95,9 +101,13 @@ static bool expose_event(RobWidget* handle, cairo_t* cr, cairo_rectangle_t *ev)
 	return TRUE;
 }
 
+static void expose_plot(cairo_t* cr, void *smth)
+{
+}
+
 static void xy_clip_fn(cairo_t *cr, void *data)
 {
-	rounded_rectangle(cr, 10, 10, DAWIDTH - 20, DAHEIGHT - 20, 10);
+	rounded_rectangle(cr, 0, 0, PLOT_W, PLOT_H, 0);
 	cairo_clip(cr);
 }
 
@@ -163,12 +173,6 @@ static void ui_enable(LV2UI_Handle handle)
 {
 }
 
-static void
-size_request(RobWidget* handle, int *w, int *h) {
-	*w = DAWIDTH;
-	*h = DAHEIGHT;
-}
-
 static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 {
 
@@ -208,13 +212,14 @@ static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 	ui->lbl_bw[2] = robtk_lbl_new("              Bw");
 	ui->lbl_bw[3] = robtk_lbl_new("              Bw");
 
-	ui->xyp = robtk_xydraw_new(DAWIDTH, DAHEIGHT);
-	//ui->xyp->rw->position_set = plot_position_right;
+	//ui->darea = robtk_darea_new(PLOT_W,PLOT_H, &expose_plot, ui);
+
+	ui->xyp = robtk_xydraw_new(PLOT_W, PLOT_H);
 	robtk_xydraw_set_alignment(ui->xyp, 0, 0);
 	robtk_xydraw_set_linewidth(ui->xyp, 1.5);
-	robtk_xydraw_set_drawing_mode(ui->xyp, RobTkXY_ymax_zline);
-	robtk_xydraw_set_mapping(ui->xyp, 1./(DAWIDTH), 0., 1./(DAHEIGHT), 0.);
-	robtk_xydraw_set_area(ui->xyp, 10, 10, DAWIDTH - 10, DAHEIGHT -10);
+	robtk_xydraw_set_drawing_mode(ui->xyp, RobTkXY_yraw_line);
+	robtk_xydraw_set_mapping(ui->xyp, 1./PLOT_W, 0., 1./PLOT_H, 0.);
+	robtk_xydraw_set_area(ui->xyp, 0, 0, PLOT_W, PLOT_H);
 	robtk_xydraw_set_clip_callback(ui->xyp, xy_clip_fn, ui);
 	robtk_xydraw_set_color(ui->xyp, 1.0, .0, .2, 1.0);
 
