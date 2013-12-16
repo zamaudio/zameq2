@@ -14,12 +14,8 @@
 #define DAHEIGHT (380.)
 #define EQPOINTS 100
 
-struct MyGimpImage {
-        unsigned int   width;
-        unsigned int   height;
-        unsigned int   bytes_per_pixel;
-        unsigned char  pixel_data[];
-};
+#define LOGO_W (160.)
+#define LOGO_H (30.)
 
 typedef struct {
 	LV2UI_Write_Function write;
@@ -36,6 +32,7 @@ typedef struct {
 	RobTkSep  *sep[3];
 
 	RobTkXYp  *xyp;
+	RobTkImg  *logo;
 
 	RobTkLbl  *lbl_ingain;
 	RobTkSpin *knob_ingain;
@@ -52,60 +49,9 @@ typedef struct {
 
 } ZamEQ2_UI;
 
-/* load gimp-exported .c image into cairo surface */
-static void img2surf (struct MyGimpImage const * img, cairo_surface_t **s, unsigned char **d) {
-        unsigned int x,y;
-        unsigned int stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, img->width);
-
-        (*d) = (unsigned char*) malloc (stride * img->height);
-        (*s) = cairo_image_surface_create_for_data(*d,
-                        CAIRO_FORMAT_ARGB32, img->width, img->height, stride);
-
-        cairo_surface_flush (*s);
-        for (y = 0; y < img->height; ++y) {
-                const int y0 = y * stride;
-                const int ys = y * img->width * img->bytes_per_pixel;
-                for (x = 0; x < img->width; ++x) {
-                        const int xs = x * img->bytes_per_pixel;
-                        const int xd = x * 4;
-
-                        if (img->bytes_per_pixel == 3) {
-                        	(*d)[y0 + xd + 3] = 0xff;
-                        } else {
-                        	(*d)[y0 + xd + 3] = img->pixel_data[ys + xs + 3]; // A
-                        }
-                        (*d)[y0 + xd + 2] = img->pixel_data[ys + xs];     // R
-                        (*d)[y0 + xd + 1] = img->pixel_data[ys + xs + 1]; // G
-                        (*d)[y0 + xd + 0] = img->pixel_data[ys + xs + 2]; // B
-                }
-        }
-        cairo_surface_mark_dirty (*s);
-}
-
-//#include "gui/img/eq2.c"
+#include "gui/img/logo.c"
 
 static void render_frontface(ZamEQ2_UI* ui) {
-/*
-	cairo_surface_t *bg;
-	unsigned char * img_tmp;
-	//img2surf((struct MyGimpImage const *) &img_eq2, &bg, &img_tmp);
-	cairo_t *cr;
-	if (!ui->frontface) {
-		ui->frontface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, DAWIDTH, DAHEIGHT);
-	}
-	cr = cairo_create(ui->frontface);
-
-	cairo_save(cr);
-	cairo_set_source_surface(cr, bg, 0, 0);
-	cairo_rectangle (cr, 0, 0, DAWIDTH, DAHEIGHT);
-	cairo_fill(cr);
-	cairo_paint(cr);
-	cairo_restore(cr);
-
-	cairo_destroy(cr);
-	free(img_tmp);
-*/
-
 	cairo_t *cr;
 	robtk_xydraw_set_surface(ui->xyp, NULL);
 	ui->eqcurve = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, DAWIDTH, DAWIDTH);
@@ -129,8 +75,8 @@ static void render_frontface(ZamEQ2_UI* ui) {
 static void calceqcurve(float val[], float x[], float y[])
 {
 	for (uint32_t i = 0; i < EQPOINTS; ++i) {
-		x[i] = 0.0;
-		y[i] = 0.0;
+		x[i] = i/(float) EQPOINTS;
+		y[i] = i/(float) EQPOINTS;
 	}
 }
 
@@ -267,10 +213,13 @@ static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 	robtk_xydraw_set_alignment(ui->xyp, 0, 0);
 	robtk_xydraw_set_linewidth(ui->xyp, 1.5);
 	robtk_xydraw_set_drawing_mode(ui->xyp, RobTkXY_ymax_zline);
-	robtk_xydraw_set_mapping(ui->xyp, 1./EQPOINTS, 0, 1./EQPOINTS, 1.);
+	robtk_xydraw_set_mapping(ui->xyp, 1./(DAWIDTH), 0., 1./(DAHEIGHT), 0.);
 	robtk_xydraw_set_area(ui->xyp, 10, 10, DAWIDTH - 10, DAHEIGHT -10);
 	robtk_xydraw_set_clip_callback(ui->xyp, xy_clip_fn, ui);
 	robtk_xydraw_set_color(ui->xyp, 1.0, .0, .2, 1.0);
+
+	ui->logo = robtk_img_new(LOGO_W, LOGO_H, 4, img_logo.pixel_data);
+	robtk_img_set_alignment(ui->logo, 0, 0);
 
 	int row = 0;
 	rob_table_attach(ui->ctable, robtk_lbl_widget(ui->lbl_bw[2]),
@@ -348,6 +297,8 @@ static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 	rob_table_attach(ui->ctable, robtk_spin_widget(ui->knob_gain[3]),
 		1, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
 	row++;
+	rob_table_attach(ui->ctable, robtk_img_widget(ui->logo),
+		0, 2, row, row+1, 0, 0, RTK_EXANDF, RTK_SHRINK);
 
 #define SPIN_DFTNVAL(SPB, VAL) \
 	robtk_spin_set_default(SPB, VAL); \
@@ -447,6 +398,7 @@ cleanup(LV2UI_Handle handle)
 	//robtk_lbl_destroy(ui->lbl_ingain);
 	//robtk_spin_destroy(ui->knob_outgain);
 	//robtk_lbl_destroy(ui->lbl_outgain);
+	robtk_img_destroy(ui->logo);
 
 	rob_box_destroy(ui->hbox);
 	cairo_surface_destroy(ui->frontface);
