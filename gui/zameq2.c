@@ -161,8 +161,8 @@ static void calceqcurve(float val[], float x[], float y[])
 		x[i] = log10(i)/log10((float)EQPOINTS);
 		double L,M,N,O,P,Q,R;
 		double complex H;
-		double complex expiw = cos(-(i)*M_PI/EQPOINTS*20./48.) + I*sin(-(i)*M_PI/EQPOINTS*20./48.);
-		double complex exp2iw = cos(-2*(i)*M_PI/EQPOINTS*20./48.)+ I*sin(-2*(i)*M_PI/EQPOINTS*20./48.);
+		double complex expiw = cos(-(i+0.005)*M_PI/EQPOINTS*20./48.) + I*sin(-(i+0.005)*M_PI/EQPOINTS*20./48.);
+		double complex exp2iw = cos(-2*(i+0.005)*M_PI/EQPOINTS*20./48.)+ I*sin(-2*(i+0.005)*M_PI/EQPOINTS*20./48.);
 		double freqH, phaseH;
 		double dcgain = 1.f;
 
