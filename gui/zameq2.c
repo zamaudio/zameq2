@@ -10,7 +10,7 @@
 
 #include "lv2/lv2plug.in/ns/extensions/ui/ui.h"
 
-#define EQPOINTS 1000
+#define EQPOINTS 1600
 
 #define LOGO_W (160.)
 #define LOGO_H (30.)
@@ -109,14 +109,60 @@ peq(double G0, double G, double GB, double w0, double Dw,
 	if (!isnormal(*b0)) { *b0 = 1.; }
 }
 
+static void
+lowshelfeq(double G0, double G, double GB, double w0, double Dw, double q,
+                double B[], double A[]) {
+        double alpha,b0,b1,b2,a0,a1,a2;
+        G = powf(10.f,G/20.f);
+        double AA  = sqrt(G);
+
+        alpha = sin(w0)/2.f * sqrt( (AA + 1.f/AA)*(1.f/q - 1.f) + 2.f );
+        b0 =    AA*( (AA+1.f) - (AA-1.f)*cos(w0) + 2.f*sqrt(AA)*alpha );
+        b1 =  2.f*AA*( (AA-1.f) - (AA+1.f)*cos(w0)                   );
+        b2 =    AA*( (AA+1.f) - (AA-1.f)*cos(w0) - 2.f*sqrt(AA)*alpha );
+        a0 =        (AA+1.f) + (AA-1.f)*cos(w0) + 2.f*sqrt(AA)*alpha;
+        a1 =   -2.f*( (AA-1.f) + (AA+1.f)*cos(w0)                   );
+        a2 =        (AA+1.f) + (AA-1.f)*cos(w0) - 2.f*sqrt(AA)*alpha;
+
+        B[0] = b0/a0;
+        B[1] = b1/a0;
+        B[2] = b2/a0;
+        A[0] = 1.f;
+        A[1] = a1/a0;
+        A[2] = a2/a0;
+}
+
+static void
+highshelfeq(double G0, double G, double GB, double w0, double Dw, double q,
+                double B[], double A[]) {
+        double alpha,b0,b1,b2,a0,a1,a2;
+        G = powf(10.f,G/20.f);
+        double AA  = sqrt(G);
+
+        alpha = sin(w0)/2.f * sqrt( (AA + 1.f/AA)*(1.f/q - 1.f) + 2.f );
+        b0 =    AA*( (AA+1.f) + (AA-1.f)*cos(w0) + 2.f*sqrt(AA)*alpha );
+        b1 =  -2.f*AA*( (AA-1.f) + (AA+1.f)*cos(w0)                   );
+        b2 =    AA*( (AA+1.f) + (AA-1.f)*cos(w0) - 2.f*sqrt(AA)*alpha );
+        a0 =        (AA+1.f) - (AA-1.f)*cos(w0) + 2.f*sqrt(AA)*alpha;
+        a1 =   2.f*( (AA-1.f) - (AA+1.f)*cos(w0)                   ); 
+        a2 =        (AA+1.f) - (AA-1.f)*cos(w0) - 2.f*sqrt(AA)*alpha; 
+        
+        B[0] = b0/a0;
+        B[1] = b1/a0;
+        B[2] = b2/a0;
+        A[0] = 1.f; 
+        A[1] = a1/a0;
+        A[2] = a2/a0;
+}
+
 static void calceqcurve(float val[], float x[], float y[])
 {
 	for (uint32_t i = 0; i < EQPOINTS; ++i) {
-		x[i] = i/(float)EQPOINTS;
+		x[i] = log10(i)/log10((float)EQPOINTS);
 		double L,M,N,O,P,Q,R;
 		double complex H;
-		double complex expiw = cos(-(i+0.0005)*M_PI/EQPOINTS*20./48.) + I*sin(-(i+0.0005)*M_PI/EQPOINTS*20./48.);
-		double complex exp2iw = cos(-2*(i+0.0005)*M_PI/EQPOINTS*20./48.)+ I*sin(-2*(i+0.0005)*M_PI/EQPOINTS*20./48.);
+		double complex expiw = cos(-(i)*M_PI/EQPOINTS*20./48.) + I*sin(-(i)*M_PI/EQPOINTS*20./48.);
+		double complex exp2iw = cos(-2*(i)*M_PI/EQPOINTS*20./48.)+ I*sin(-2*(i)*M_PI/EQPOINTS*20./48.);
 		double freqH, phaseH;
 		double dcgain = 1.f;
 
@@ -129,40 +175,48 @@ static void calceqcurve(float val[], float x[], float y[])
 
 		peq(1.0, boost1, bwgain1, w01, bw1, &P, &Q, &R, &M, &N, &O, &L);
 		H = (M + N*expiw + O*exp2iw)/(P + Q*expiw + R*exp2iw);
+		
+		qq1 = pow(2.0, 1.0/val[5])/(pow(2.0, val[5]) - 1.0); //q from octave bw
+		boost1 = from_dB(val[9]);
+		fc1 = val[1] / 48000.;
+		w01 = fc1 * 2. * M_PI;
+		bwgain1 = sqrt(boost1)*sqrt(dcgain);
+		bw1 = fc1 / qq1;
+		
+		peq(1.0, boost1, bwgain1, w01, bw1, &P, &Q, &R, &M, &N, &O, &L);
+		H += (M + N*expiw + O*exp2iw)/(P + Q*expiw + R*exp2iw);
+		
+		double boostl = from_dB(val[10]);
+		double All = sqrt(boostl);
+		double bwl = 2.f*M_PI*val[2]/ 48000.;
+		double bwgaindbl = to_dB(All);
+
+		double boosth = from_dB(val[11]);
+		double Ahh = sqrt(boosth);
+		double bwh = 2.f*M_PI*val[3]/ 48000.;
+		double bwgaindbh = to_dB(Ahh);
+
+		double Al[3], Ah[3], Bl[3], Bh[3];
+
+		lowshelfeq(0.f,val[10],bwgaindbl,2.f*M_PI*val[2]/48000.,bwl,val[6],Bl,Al);		
+		M = Bl[0]; N = Bl[1]; O = Bl[2];
+		P = Al[0]; Q = Al[1]; R = Al[2];
+		H += (M + N*expiw + O*exp2iw)/(P + Q*expiw + R*exp2iw);
+
+		highshelfeq(0.f,val[11],bwgaindbh,2.f*M_PI*val[3]/48000.,bwh,val[7],Bh,Ah);
+		M = Bh[0]; N = Bh[1]; O = Bh[2];
+		P = Ah[0]; Q = Ah[1]; R = Ah[2];
+		H += (M + N*expiw + O*exp2iw)/(P + Q*expiw + R*exp2iw);
+
 		freqH = sqrt(creal(H)*creal(H)+cimag(H)*cimag(H));
 		//phaseH = carg(H);
 
-		y[i] = (to_dB(freqH)/70. + 5./7.) ;
+		y[i] = (to_dB(freqH)-12.04)/12. + 0.5;
 		//printf("%.4f\n",y[i]);
 	}
 }
 
 #include "gui/img/logo.c"
-
-static void render_frontface(ZamEQ2_UI* ui) {
-
-	cairo_t *cr;
-	robtk_xydraw_set_surface(ui->xyp, NULL);
-	ui->eqcurve = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, PLOT_W, PLOT_H);
-	cr = cairo_create (ui->eqcurve);
-
-	CairoSetSouerceRGBA(c_blk);
-	cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
-	cairo_rectangle (cr, 0, 0, PLOT_W, PLOT_H);
-	cairo_fill (cr);
-
-	cairo_save(cr);
-	rounded_rectangle (cr, 10, 10, PLOT_W - 20, PLOT_H - 20, 10);
-	CairoSetSouerceRGBA(c_blk);
-	cairo_fill_preserve(cr);
-	cairo_clip(cr);
-	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
-	
-	robtk_xydraw_set_surface(ui->xyp, ui->eqcurve);
-	calceqcurve(ui->eqx, ui->eqx, ui->eqy);
-	robtk_xydraw_set_points(ui->xyp, EQPOINTS, ui->eqx, ui->eqy);
-
-}
 
 static bool expose_event(RobWidget* handle, cairo_t* cr, cairo_rectangle_t *ev)
 {
@@ -226,6 +280,31 @@ static bool cb_set_knobs (RobWidget* handle, void *data) {
 	robtk_xydraw_set_points(ui->xyp, EQPOINTS, ui->eqx, ui->eqy);
 
 	return TRUE;
+}
+
+static void render_frontface(ZamEQ2_UI* ui) {
+
+	cairo_t *cr;
+	robtk_xydraw_set_surface(ui->xyp, NULL);
+	ui->eqcurve = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, PLOT_W, PLOT_H);
+	cr = cairo_create (ui->eqcurve);
+
+	CairoSetSouerceRGBA(c_blk);
+	cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
+	cairo_rectangle (cr, 0, 0, PLOT_W, PLOT_H);
+	cairo_fill (cr);
+
+	cairo_save(cr);
+	rounded_rectangle (cr, 10, 10, PLOT_W - 20, PLOT_H - 20, 10);
+	CairoSetSouerceRGBA(c_blk);
+	cairo_fill_preserve(cr);
+	cairo_clip(cr);
+	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
+	
+	robtk_xydraw_set_surface(ui->xyp, ui->eqcurve);
+	
+	ui->disable_signals = false;
+	cb_set_knobs(NULL, ui);
 }
 
 static void ui_disable(LV2UI_Handle handle)
