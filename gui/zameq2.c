@@ -10,7 +10,7 @@
 
 #include "lv2/lv2plug.in/ns/extensions/ui/ui.h"
 
-#define EQPOINTS 1600
+#define EQPOINTS 1500
 
 #define LOGO_W (160.)
 #define LOGO_H (30.)
@@ -46,8 +46,10 @@ typedef struct {
 	
 	float eqx[EQPOINTS];
 	float eqy[EQPOINTS];
+	float knobs[12];
 
 	bool disable_signals;
+	bool first;
 
 } ZamEQ2_UI;
 
@@ -155,20 +157,28 @@ highshelfeq(double G0, double G, double GB, double w0, double Dw, double q,
         A[2] = a2/a0;
 }
 
-static void calceqcurve(float val[], float x[], float y[])
+static void calceqcurve(ZamEQ2_UI* ui, float x[], float y[])
 {
+	float SR = 48000.;
+	float p1 = 10000.;
+	float p2 = 5000.;
+	float c2 = log10(1.+SR);
+	float c1 = (1.+p1/SR)/(EQPOINTS*(p2/SR)*(p2/SR));
+	
 	for (uint32_t i = 0; i < EQPOINTS; ++i) {
-		x[i] = log10(i)/log10((float)EQPOINTS);
+		//x[i] = log10(i)/log10((float)EQPOINTS);
+		x[i] = 1.5*log10(1.+i+c1)/c2;
+		
 		double L,M,N,O,P,Q,R;
 		double complex H;
 		double complex expiw = cos(-(i+0.005)*M_PI/EQPOINTS*20./48.) + I*sin(-(i+0.005)*M_PI/EQPOINTS*20./48.);
 		double complex exp2iw = cos(-2*(i+0.005)*M_PI/EQPOINTS*20./48.)+ I*sin(-2*(i+0.005)*M_PI/EQPOINTS*20./48.);
-		double freqH, phaseH;
+		double freqH; //phaseH;
 		double dcgain = 1.f;
 
-		double qq1 = pow(2.0, 1.0/val[4])/(pow(2.0, val[4]) - 1.0); //q from octave bw
-		double boost1 = from_dB(val[8]);
-		double fc1 = val[0] / 48000.;
+		double qq1 = pow(2.0, 1.0/ui->knobs[4])/(pow(2.0, ui->knobs[4]) - 1.0); //q from octave bw
+		double boost1 = from_dB(ui->knobs[8]);
+		double fc1 = ui->knobs[0] / 48000.;
 		double w01 = fc1 * 2. * M_PI;
 		double bwgain1 = sqrt(boost1)*sqrt(dcgain);
 		double bw1 = fc1 / qq1;
@@ -176,9 +186,9 @@ static void calceqcurve(float val[], float x[], float y[])
 		peq(1.0, boost1, bwgain1, w01, bw1, &P, &Q, &R, &M, &N, &O, &L);
 		H = (M + N*expiw + O*exp2iw)/(P + Q*expiw + R*exp2iw);
 		
-		qq1 = pow(2.0, 1.0/val[5])/(pow(2.0, val[5]) - 1.0); //q from octave bw
-		boost1 = from_dB(val[9]);
-		fc1 = val[1] / 48000.;
+		qq1 = pow(2.0, 1.0/ui->knobs[5])/(pow(2.0, ui->knobs[5]) - 1.0); //q from octave bw
+		boost1 = from_dB(ui->knobs[9]);
+		fc1 = ui->knobs[1] / 48000.;
 		w01 = fc1 * 2. * M_PI;
 		bwgain1 = sqrt(boost1)*sqrt(dcgain);
 		bw1 = fc1 / qq1;
@@ -186,24 +196,24 @@ static void calceqcurve(float val[], float x[], float y[])
 		peq(1.0, boost1, bwgain1, w01, bw1, &P, &Q, &R, &M, &N, &O, &L);
 		H += (M + N*expiw + O*exp2iw)/(P + Q*expiw + R*exp2iw);
 		
-		double boostl = from_dB(val[10]);
+		double boostl = from_dB(ui->knobs[10]);
 		double All = sqrt(boostl);
-		double bwl = 2.f*M_PI*val[2]/ 48000.;
+		double bwl = 2.f*M_PI*ui->knobs[2]/ 48000.;
 		double bwgaindbl = to_dB(All);
 
-		double boosth = from_dB(val[11]);
+		double boosth = from_dB(ui->knobs[11]);
 		double Ahh = sqrt(boosth);
-		double bwh = 2.f*M_PI*val[3]/ 48000.;
+		double bwh = 2.f*M_PI*ui->knobs[3]/ 48000.;
 		double bwgaindbh = to_dB(Ahh);
 
 		double Al[3], Ah[3], Bl[3], Bh[3];
 
-		lowshelfeq(0.f,val[10],bwgaindbl,2.f*M_PI*val[2]/48000.,bwl,val[6],Bl,Al);		
+		lowshelfeq(0.f,ui->knobs[10],bwgaindbl,2.f*M_PI*ui->knobs[2]/48000.,bwl,ui->knobs[6],Bl,Al);		
 		M = Bl[0]; N = Bl[1]; O = Bl[2];
 		P = Al[0]; Q = Al[1]; R = Al[2];
 		H += (M + N*expiw + O*exp2iw)/(P + Q*expiw + R*exp2iw);
 
-		highshelfeq(0.f,val[11],bwgaindbh,2.f*M_PI*val[3]/48000.,bwh,val[7],Bh,Ah);
+		highshelfeq(0.f,ui->knobs[11],bwgaindbh,2.f*M_PI*ui->knobs[3]/48000.,bwh,ui->knobs[7],Bh,Ah);
 		M = Bh[0]; N = Bh[1]; O = Bh[2];
 		P = Ah[0]; Q = Ah[1]; R = Ah[2];
 		H += (M + N*expiw + O*exp2iw)/(P + Q*expiw + R*exp2iw);
@@ -233,52 +243,44 @@ static bool expose_event(RobWidget* handle, cairo_t* cr, cairo_rectangle_t *ev)
 	return TRUE;
 }
 
-static void expose_plot(cairo_t* cr, void *smth)
-{
-}
-
 static void xy_clip_fn(cairo_t *cr, void *data)
 {
-	ZamEQ2_UI* ui = (ZamEQ2_UI*) (data);
 	rounded_rectangle(cr, 10, 10, PLOT_W-20, PLOT_H-20, 10);
 	cairo_clip(cr);
-	cairo_set_source_surface(cr, ui->eqcurve, 0, 0);
-	cairo_paint(cr);
 }
 
 static bool cb_set_knobs (RobWidget* handle, void *data) {
 	ZamEQ2_UI* ui = (ZamEQ2_UI*) (data);
-	float val[12];
-	if (ui->disable_signals) return TRUE;
+	// continue polling until all signals read
+	if (ui->disable_signals) return FALSE;
 	
-	val[0] = robtk_spin_get_value(ui->knob_freq[0]);
-	ui->write(ui->controller, ZAMEQ2_FREQ1, sizeof(float), 0, (const void*) &val[0]);
-	val[1] = robtk_spin_get_value(ui->knob_freq[1]);
-	ui->write(ui->controller, ZAMEQ2_FREQ2, sizeof(float), 0, (const void*) &val[1]);
-	val[2] = robtk_spin_get_value(ui->knob_freq[2]);
-	ui->write(ui->controller, ZAMEQ2_FREQL, sizeof(float), 0, (const void*) &val[2]);
-	val[3] = robtk_spin_get_value(ui->knob_freq[3]);
-	ui->write(ui->controller, ZAMEQ2_FREQH, sizeof(float), 0, (const void*) &val[3]);
-	val[4] = robtk_spin_get_value(ui->knob_bw[0]);
-	ui->write(ui->controller, ZAMEQ2_Q1, sizeof(float), 0, (const void*) &val[4]);
-	val[5] = robtk_spin_get_value(ui->knob_bw[1]);
-	ui->write(ui->controller, ZAMEQ2_Q2, sizeof(float), 0, (const void*) &val[5]);
-	val[6] = robtk_spin_get_value(ui->knob_bw[2]);
-	ui->write(ui->controller, ZAMEQ2_SLOPEDBL, sizeof(float), 0, (const void*) &val[6]);
-	val[7] = robtk_spin_get_value(ui->knob_bw[3]);
-	ui->write(ui->controller, ZAMEQ2_SLOPEDBH, sizeof(float), 0, (const void*) &val[7]);
-	val[8] = robtk_spin_get_value(ui->knob_gain[0]);
-	ui->write(ui->controller, ZAMEQ2_BOOSTDB1, sizeof(float), 0, (const void*) &val[8]);
-	val[9] = robtk_spin_get_value(ui->knob_gain[1]);
-	ui->write(ui->controller, ZAMEQ2_BOOSTDB2, sizeof(float), 0, (const void*) &val[9]);
-	val[10] = robtk_spin_get_value(ui->knob_gain[2]);
-	ui->write(ui->controller, ZAMEQ2_BOOSTDBL, sizeof(float), 0, (const void*) &val[10]);
-	val[11] = robtk_spin_get_value(ui->knob_gain[3]);
-	ui->write(ui->controller, ZAMEQ2_BOOSTDBH, sizeof(float), 0, (const void*) &val[11]);
+	ui->knobs[0] = robtk_spin_get_value(ui->knob_freq[0]);
+	ui->write(ui->controller, ZAMEQ2_FREQ1, sizeof(float), 0, (const void*) &ui->knobs[0]);
+	ui->knobs[1] = robtk_spin_get_value(ui->knob_freq[1]);
+	ui->write(ui->controller, ZAMEQ2_FREQ2, sizeof(float), 0, (const void*) &ui->knobs[1]);
+	ui->knobs[2] = robtk_spin_get_value(ui->knob_freq[2]);
+	ui->write(ui->controller, ZAMEQ2_FREQL, sizeof(float), 0, (const void*) &ui->knobs[2]);
+	ui->knobs[3] = robtk_spin_get_value(ui->knob_freq[3]);
+	ui->write(ui->controller, ZAMEQ2_FREQH, sizeof(float), 0, (const void*) &ui->knobs[3]);
+	ui->knobs[4] = robtk_spin_get_value(ui->knob_bw[0]);
+	ui->write(ui->controller, ZAMEQ2_Q1, sizeof(float), 0, (const void*) &ui->knobs[4]);
+	ui->knobs[5] = robtk_spin_get_value(ui->knob_bw[1]);
+	ui->write(ui->controller, ZAMEQ2_Q2, sizeof(float), 0, (const void*) &ui->knobs[5]);
+	ui->knobs[6] = robtk_spin_get_value(ui->knob_bw[2]);
+	ui->write(ui->controller, ZAMEQ2_SLOPEDBL, sizeof(float), 0, (const void*) &ui->knobs[6]);
+	ui->knobs[7] = robtk_spin_get_value(ui->knob_bw[3]);
+	ui->write(ui->controller, ZAMEQ2_SLOPEDBH, sizeof(float), 0, (const void*) &ui->knobs[7]);
+	ui->knobs[8] = robtk_spin_get_value(ui->knob_gain[0]);
+	ui->write(ui->controller, ZAMEQ2_BOOSTDB1, sizeof(float), 0, (const void*) &ui->knobs[8]);
+	ui->knobs[9] = robtk_spin_get_value(ui->knob_gain[1]);
+	ui->write(ui->controller, ZAMEQ2_BOOSTDB2, sizeof(float), 0, (const void*) &ui->knobs[9]);
+	ui->knobs[10] = robtk_spin_get_value(ui->knob_gain[2]);
+	ui->write(ui->controller, ZAMEQ2_BOOSTDBL, sizeof(float), 0, (const void*) &ui->knobs[10]);
+	ui->knobs[11] = robtk_spin_get_value(ui->knob_gain[3]);
+	ui->write(ui->controller, ZAMEQ2_BOOSTDBH, sizeof(float), 0, (const void*) &ui->knobs[11]);
 
-	calceqcurve(val, ui->eqx, ui->eqy);
+	calceqcurve(ui, ui->eqx, ui->eqy);
 	robtk_xydraw_set_points(ui->xyp, EQPOINTS, ui->eqx, ui->eqy);
-
 	return TRUE;
 }
 
@@ -298,13 +300,13 @@ static void render_frontface(ZamEQ2_UI* ui) {
 	rounded_rectangle (cr, 10, 10, PLOT_W - 20, PLOT_H - 20, 10);
 	CairoSetSouerceRGBA(c_blk);
 	cairo_fill_preserve(cr);
-	cairo_clip(cr);
 	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 	
 	robtk_xydraw_set_surface(ui->xyp, ui->eqcurve);
 	
-	ui->disable_signals = false;
-	cb_set_knobs(NULL, ui);
+	calceqcurve(ui, ui->eqx, ui->eqy);
+	robtk_xydraw_set_points(ui->xyp, EQPOINTS, ui->eqx, ui->eqy);
+	// XXX Doesn't print graph since knob values are NaN.. why?
 }
 
 static void ui_disable(LV2UI_Handle handle)
@@ -451,18 +453,7 @@ static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 	robtk_spin_set_default(SPB, VAL); \
 	robtk_spin_set_value(SPB, VAL);
 
-	SPIN_DFTNVAL(ui->knob_gain[0], 0)
-	SPIN_DFTNVAL(ui->knob_gain[1], 0)
-	SPIN_DFTNVAL(ui->knob_gain[2], 0)
-	SPIN_DFTNVAL(ui->knob_gain[3], 0)
-	SPIN_DFTNVAL(ui->knob_freq[0], 400)
-	SPIN_DFTNVAL(ui->knob_freq[1], 1500)
-	SPIN_DFTNVAL(ui->knob_freq[2], 250)
-	SPIN_DFTNVAL(ui->knob_freq[3], 9000)
-	SPIN_DFTNVAL(ui->knob_bw[0], 1)
-	SPIN_DFTNVAL(ui->knob_bw[1], 1)
-	SPIN_DFTNVAL(ui->knob_bw[2], 1)
-	SPIN_DFTNVAL(ui->knob_bw[3], 1)
+
 
 	robtk_spin_set_callback(ui->knob_freq[0], cb_set_knobs, ui);
 	robtk_spin_set_callback(ui->knob_freq[1], cb_set_knobs, ui);
@@ -506,13 +497,20 @@ instantiate(
 	}
 
 	*widget = NULL;
+	ui->first = true;
+
+	for (uint32_t i = 0; i < 12; ++i) {
+		ui->knobs[i] = 0.;
+	}
 
 	/* initialize private data structure */
 	ui->write      = write_function;
 	ui->controller = controller;
 
 	*widget = toplevel(ui, ui_toplevel);
+	//printf("1\n");
 	render_frontface(ui);
+	ui->first = false;
 	return ui;
 }
 
@@ -569,61 +567,73 @@ port_event(LV2UI_Handle handle,
 		case ZAMEQ2_BOOSTDB1:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_gain[0], v);
+			ui->knobs[8] = v;
 			ui->disable_signals = false;
 			break;
 		case ZAMEQ2_Q1:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_bw[0], v);
+			ui->knobs[4] = v;
 			ui->disable_signals = false;
 			break;
 		case ZAMEQ2_FREQ1:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_freq[0], v);
+			ui->knobs[0] = v;
 			ui->disable_signals = false;
 			break;
 		case ZAMEQ2_BOOSTDB2:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_gain[1], v);
+			ui->knobs[9] = v;
 			ui->disable_signals = false;
 			break;
 		case ZAMEQ2_Q2:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_bw[1], v);
+			ui->knobs[5] = v;
 			ui->disable_signals = false;
 			break;
 		case ZAMEQ2_FREQ2:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_freq[1], v);
+			ui->knobs[1] = v;
 			ui->disable_signals = false;
 			break;
 		case ZAMEQ2_BOOSTDBL:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_gain[2], v);
+			ui->knobs[10] = v;
 			ui->disable_signals = false;
 			break;
 		case ZAMEQ2_SLOPEDBL:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_bw[2], v);
+			ui->knobs[6] = v;
 			ui->disable_signals = false;
 			break;
 		case ZAMEQ2_FREQL:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_freq[2], v);
+			ui->knobs[2] = v;
 			ui->disable_signals = false;
 			break;
 		case ZAMEQ2_BOOSTDBH:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_gain[3], v);
+			ui->knobs[11] = v;
 			ui->disable_signals = false;
 			break;
 		case ZAMEQ2_SLOPEDBH:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_bw[3], v);
+			ui->knobs[7] = v;
 			ui->disable_signals = false;
 			break;
 		case ZAMEQ2_FREQH:
 			ui->disable_signals = true;
 			robtk_spin_set_value(ui->knob_freq[3], v);
+			ui->knobs[3] = v;
 			ui->disable_signals = false;
 			break;
 		default:
