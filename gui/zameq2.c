@@ -6,10 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <complex.h>
 
 #include "lv2/lv2plug.in/ns/extensions/ui/ui.h"
 
-#define EQPOINTS 100
+#define EQPOINTS 1000
 
 #define LOGO_W (160.)
 #define LOGO_H (30.)
@@ -50,6 +51,92 @@ typedef struct {
 
 } ZamEQ2_UI;
 
+static inline double
+to_dB(double g) {
+	return (20.*log10(g));
+}
+
+static inline double
+from_dB(double gdb) {
+	return (exp(gdb/20.*log(10.)));
+}
+
+static inline double
+sanitize_denormal(double value) {
+	if (!isnormal(value)) {
+		return (0.);
+	}
+	return value;
+}
+
+static void
+peq(double G0, double G, double GB, double w0, double Dw,
+        double *a0, double *a1, double *a2, double *b0, double *b1, double *b2, double *gn) {
+
+	double F,G00,F00,num,den,G1,G01,G11,F01,F11,W2,Dww,C,D,B,A;
+	F = fabs(G*G - GB*GB);
+	G00 = fabs(G*G - G0*G0);
+	F00 = fabs(GB*GB - G0*G0);
+	num = G0*G0 * (w0*w0 - M_PI*M_PI)*(w0*w0 - M_PI*M_PI)
+		+ G*G * F00 * M_PI*M_PI * Dw*Dw / F;
+	den = (w0*w0 - M_PI*M_PI)*(w0*w0 - M_PI*M_PI)
+		+ F00 * M_PI*M_PI * Dw*Dw / F;
+	G1 = sqrt(num/den);
+	G01 = fabs(G*G - G0*G1);
+	G11 = fabs(G*G - G1*G1);
+	F01 = fabs(GB*GB - G0*G1);
+	F11 = fabs(GB*GB - G1*G1);
+	W2 = sqrt(G11 / G00) * tan(w0/2.)*tan(w0/2.);
+	Dww = (1.+ sqrt(F00 / F11) * W2) * tan(Dw/2.);
+	C = F11 * Dww*Dww - 2. * W2 * (F01 - sqrt(F00 * F11));
+	D = 2. * W2 * (G01 - sqrt(G00 * G11));
+	A = sqrt((C + D) / F);
+	B = sqrt((G*G * C + GB*GB * D) / F);
+	*gn = G1;
+	*b0 = (G1 + G0*W2 + B) / (1. + W2 + A);
+	*b1 = -2.*(G1 - G0*W2) / (1. + W2 + A);
+	*b2 = (G1 - B + G0*W2) / (1. + W2 + A);
+	*a0 = 1.;
+	*a1 = -2.*(1. - W2) / (1. + W2 + A);
+	*a2 = (1. + W2 - A) / (1. + W2 + A); 
+
+	*b1 = sanitize_denormal(*b1); 
+	*b2 = sanitize_denormal(*b2);
+	*a0 = sanitize_denormal(*a0);
+	*a1 = sanitize_denormal(*a1);
+	*a2 = sanitize_denormal(*a2);
+	*gn = sanitize_denormal(*gn);
+	if (!isnormal(*b0)) { *b0 = 1.; }
+}
+
+static void calceqcurve(float val[], float x[], float y[])
+{
+	for (uint32_t i = 0; i < EQPOINTS; ++i) {
+		x[i] = i/(float)EQPOINTS;
+		double L,M,N,O,P,Q,R;
+		double complex H;
+		double complex expiw = cos(-(i+0.0005)*M_PI/EQPOINTS*20./48.) + I*sin(-(i+0.0005)*M_PI/EQPOINTS*20./48.);
+		double complex exp2iw = cos(-2*(i+0.0005)*M_PI/EQPOINTS*20./48.)+ I*sin(-2*(i+0.0005)*M_PI/EQPOINTS*20./48.);
+		double freqH, phaseH;
+		double dcgain = 1.f;
+
+		double qq1 = pow(2.0, 1.0/val[4])/(pow(2.0, val[4]) - 1.0); //q from octave bw
+		double boost1 = from_dB(val[8]);
+		double fc1 = val[0] / 48000.;
+		double w01 = fc1 * 2. * M_PI;
+		double bwgain1 = sqrt(boost1)*sqrt(dcgain);
+		double bw1 = fc1 / qq1;
+
+		peq(1.0, boost1, bwgain1, w01, bw1, &P, &Q, &R, &M, &N, &O, &L);
+		H = (M + N*expiw + O*exp2iw)/(P + Q*expiw + R*exp2iw);
+		freqH = sqrt(creal(H)*creal(H)+cimag(H)*cimag(H));
+		//phaseH = carg(H);
+
+		y[i] = (to_dB(freqH)/70. + 5./7.) ;
+		//printf("%.4f\n",y[i]);
+	}
+}
+
 #include "gui/img/logo.c"
 
 static void render_frontface(ZamEQ2_UI* ui) {
@@ -72,15 +159,9 @@ static void render_frontface(ZamEQ2_UI* ui) {
 	cairo_set_operator (cr, CAIRO_OPERATOR_OVER);
 	
 	robtk_xydraw_set_surface(ui->xyp, ui->eqcurve);
+	calceqcurve(ui->eqx, ui->eqx, ui->eqy);
+	robtk_xydraw_set_points(ui->xyp, EQPOINTS, ui->eqx, ui->eqy);
 
-}
-
-static void calceqcurve(float val[], float x[], float y[])
-{
-	for (uint32_t i = 0; i < EQPOINTS; ++i) {
-		x[i] = 0.1;
-		y[i] = -0.1;
-	}
 }
 
 static bool expose_event(RobWidget* handle, cairo_t* cr, cairo_rectangle_t *ev)
@@ -142,6 +223,7 @@ static bool cb_set_knobs (RobWidget* handle, void *data) {
 	ui->write(ui->controller, ZAMEQ2_BOOSTDBH, sizeof(float), 0, (const void*) &val[11]);
 
 	calceqcurve(val, ui->eqx, ui->eqy);
+	robtk_xydraw_set_points(ui->xyp, EQPOINTS, ui->eqx, ui->eqy);
 
 	return TRUE;
 }
@@ -198,11 +280,11 @@ static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 	ui->xyp = robtk_xydraw_new(PLOT_W, PLOT_H);
 	robtk_xydraw_set_alignment(ui->xyp, 0, 0);
 	robtk_xydraw_set_linewidth(ui->xyp, 2.5);
-	robtk_xydraw_set_drawing_mode(ui->xyp, RobTkXY_yraw_zline);
-	robtk_xydraw_set_mapping(ui->xyp, 1./20000., 0., 1./70., 1.0);
+	robtk_xydraw_set_drawing_mode(ui->xyp, RobTkXY_yraw_line);
+	robtk_xydraw_set_mapping(ui->xyp, 1., 0., 1., 0.);
 	robtk_xydraw_set_area(ui->xyp, 10, 10, PLOT_W-20, PLOT_H-20);
 	robtk_xydraw_set_clip_callback(ui->xyp, xy_clip_fn, ui);
-	robtk_xydraw_set_color(ui->xyp, 1.0, .0, .2, 1.0);
+	robtk_xydraw_set_color(ui->xyp, 1.0, .2, .0, 1.0);
 
 	ui->logo = robtk_img_new(LOGO_W, LOGO_H, 4, img_logo.pixel_data);
 	robtk_img_set_alignment(ui->logo, 0, 0);
@@ -401,7 +483,6 @@ port_event(LV2UI_Handle handle,
 {
 	ZamEQ2_UI* ui = (ZamEQ2_UI*)handle;
 	
-	robtk_xydraw_set_points(ui->xyp, EQPOINTS, ui->eqx, ui->eqy);
 
 	if (format != 0) return;
 	const float v = *(float *)buffer;
