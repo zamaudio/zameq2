@@ -306,6 +306,14 @@ static void render_frontface(ZamEQ2_UI* ui) {
 	
 	calceqcurve(ui, ui->eqx, ui->eqy);
 	robtk_xydraw_set_points(ui->xyp, EQPOINTS, ui->eqx, ui->eqy);
+
+	cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.8);
+	const double dash[] = {1.5};
+	cairo_set_line_width(cr, 1.5);
+	cairo_set_dash(cr, dash, 1, 0);
+	cairo_move_to(cr, 0, PLOT_H/2.);
+	cairo_line_to(cr, PLOT_W, PLOT_H/2.);
+	cairo_stroke(cr);
 	// XXX Doesn't print graph since knob values are NaN.. why?
 }
 
@@ -453,11 +461,22 @@ static RobWidget * toplevel(ZamEQ2_UI* ui, void * const top)
 	robtk_spin_set_default(SPB, VAL); \
 	robtk_spin_set_value(SPB, VAL);
 
+	robtk_spin_set_default(ui->knob_freq[0], 400.);
+	robtk_spin_set_default(ui->knob_freq[1], 1000.);
+	robtk_spin_set_default(ui->knob_freq[2], 250.);
+	robtk_spin_set_default(ui->knob_freq[3], 9000.);
+	robtk_spin_set_default(ui->knob_bw[0], 1.);
+	robtk_spin_set_default(ui->knob_bw[1], 1.);
+	robtk_spin_set_default(ui->knob_bw[2], 1.);
+	robtk_spin_set_default(ui->knob_bw[3], 1.);
+	robtk_spin_set_default(ui->knob_gain[0], 0.);
+	robtk_spin_set_default(ui->knob_gain[1], 0.);
+	robtk_spin_set_default(ui->knob_gain[2], 0.);
+	robtk_spin_set_default(ui->knob_gain[3], 0.);
 
-
-	robtk_spin_set_callback(ui->knob_freq[0], cb_set_knobs, ui);
-	robtk_spin_set_callback(ui->knob_freq[1], cb_set_knobs, ui);
-	robtk_spin_set_callback(ui->knob_freq[2], cb_set_knobs, ui);
+      	robtk_spin_set_callback(ui->knob_freq[0], cb_set_knobs, ui);
+      	robtk_spin_set_callback(ui->knob_freq[1], cb_set_knobs, ui);
+      	robtk_spin_set_callback(ui->knob_freq[2], cb_set_knobs, ui);
 	robtk_spin_set_callback(ui->knob_freq[3], cb_set_knobs, ui);
 	robtk_spin_set_callback(ui->knob_bw[0], cb_set_knobs, ui);
 	robtk_spin_set_callback(ui->knob_bw[1], cb_set_knobs, ui);
